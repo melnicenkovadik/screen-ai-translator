@@ -12,6 +12,7 @@ class ListenService {
         this.summaryService = new SummaryService();
         this.currentSessionId = null;
         this.isInitializingSession = false;
+        this.sttSourceLanguage = 'auto';
 
         this.setupServiceCallbacks();
         console.log('[ListenService] Service instance created.');
@@ -63,7 +64,7 @@ class ListenService {
                 case 'Listen':
                     console.log('[ListenService] changeSession to "Listen"');
                     internalBridge.emit('window:requestVisibility', { name: 'listen', visible: true });
-                    await this.initializeSession();
+                    await this.initializeSession(this.sttSourceLanguage || 'ru');
                     if (listenWindow && !listenWindow.isDestroyed()) {
                         listenWindow.webContents.send('session-state-changed', { isActive: true });
                     }
@@ -154,7 +155,7 @@ class ListenService {
         }
     }
 
-    async initializeSession(language = 'en') {
+    async initializeSession(language = 'ru') {
         if (this.isInitializingSession) {
             console.log('Session initialization already in progress.');
             return false;
@@ -265,6 +266,31 @@ class ListenService {
 
     getConversationHistory() {
         return this.summaryService.getConversationHistory();
+    }
+
+    // ────────────────────────────────
+    // Language Controls
+    // ────────────────────────────────
+    getSttLanguage() {
+        return this.sttSourceLanguage || 'ru';
+    }
+
+    async setSttLanguage(lang) {
+        const newLang = (typeof lang === 'string' && lang.trim().length > 0) ? lang.trim() : 'ru';
+        const prevLang = this.sttSourceLanguage;
+        this.sttSourceLanguage = newLang;
+
+        // If session is active, renew STT sessions with the new language
+        try {
+            if (this.sttService.isSessionActive()) {
+                console.log(`[ListenService] Renewing STT sessions with language="${newLang}" (was "${prevLang}")`);
+                await this.sttService.renewSessions(newLang);
+            }
+            return { success: true };
+        } catch (err) {
+            console.error('[ListenService] Failed to set STT language:', err);
+            return { success: false, error: err.message };
+        }
     }
 
     _createHandler(asyncFn, successMessage, errorMessage) {

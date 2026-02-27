@@ -22,28 +22,28 @@ const PROVIDERS = {
       name: 'OpenAI',
       handler: () => require("./providers/openai"),
       llmModels: [
+          { id: 'gpt-5.2', name: 'GPT-5.2' },
+          { id: 'gpt-5.1', name: 'GPT-5.1' },
+          { id: 'gpt-5-mini', name: 'GPT-5 Mini' },
           { id: 'gpt-4.1', name: 'GPT-4.1' },
+          { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini' },
+          { id: 'gpt-4.1-nano', name: 'GPT-4.1 Nano' },
+          { id: 'gpt-4o', name: 'GPT-4o' },
+          { id: 'gpt-4o-mini', name: 'GPT-4o Mini' },
       ],
       sttModels: [
-          { id: 'gpt-4o-mini-transcribe', name: 'GPT-4o Mini Transcribe' }
-      ],
-  },
-
-  'openai-glass': {
-      name: 'OpenAI (Glass)',
-      handler: () => require("./providers/openai"),
-      llmModels: [
-          { id: 'gpt-4.1-glass', name: 'GPT-4.1 (glass)' },
-      ],
-      sttModels: [
-          { id: 'gpt-4o-mini-transcribe-glass', name: 'GPT-4o Mini Transcribe (glass)' }
+          { id: 'gpt-4o-transcribe', name: 'GPT-4o Transcribe' },
+          { id: 'gpt-4o-mini-transcribe', name: 'GPT-4o Mini Transcribe' },
+          { id: 'whisper-1', name: 'Whisper-1 (Legacy)' },
       ],
   },
   'gemini': {
       name: 'Gemini',
       handler: () => require("./providers/gemini"),
       llmModels: [
+          { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro' },
           { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
+          { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite' },
       ],
       sttModels: [
           { id: 'gemini-live-2.5-flash-preview', name: 'Gemini Live 2.5 Flash' }
@@ -53,87 +53,34 @@ const PROVIDERS = {
       name: 'Anthropic',
       handler: () => require("./providers/anthropic"),
       llmModels: [
-          { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet' },
+          { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6' },
+          { id: 'claude-haiku-4-5', name: 'Claude Haiku 4.5' },
+          { id: 'claude-opus-4-6', name: 'Claude Opus 4.6' },
       ],
       sttModels: [],
   },
-  'deepgram': {
-    name: 'Deepgram',
-    handler: () => require("./providers/deepgram"),
-    llmModels: [],
-    sttModels: [
-        { id: 'nova-3', name: 'Nova-3 (General)' },
-        ],
-    },
-  'ollama': {
-      name: 'Ollama (Local)',
-      handler: () => require("./providers/ollama"),
-      llmModels: [], // Dynamic models populated from installed Ollama models
-      sttModels: [], // Ollama doesn't support STT yet
-  },
-  'whisper': {
-      name: 'Whisper (Local)',
-      handler: () => {
-          // This needs to remain a function due to its conditional logic for renderer/main process
-          if (typeof window === 'undefined') {
-              const { WhisperProvider } = require("./providers/whisper");
-              return new WhisperProvider();
-          }
-          // Return a dummy object for the renderer process
-          return {
-              validateApiKey: async () => ({ success: true }), // Mock validate for renderer
-              createSTT: () => { throw new Error('Whisper STT is only available in main process'); },
-          };
-      },
-      llmModels: [],
-      sttModels: [
-          { id: 'whisper-tiny', name: 'Whisper Tiny (39M)' },
-          { id: 'whisper-base', name: 'Whisper Base (74M)' },
-          { id: 'whisper-small', name: 'Whisper Small (244M)' },
-          { id: 'whisper-medium', name: 'Whisper Medium (769M)' },
-      ],
-  },
 };
 
-function sanitizeModelId(model) {
-  return (typeof model === 'string') ? model.replace(/-glass$/, '') : model;
-}
-
 function createSTT(provider, opts) {
-  if (provider === 'openai-glass') provider = 'openai';
-  
   const handler = PROVIDERS[provider]?.handler();
   if (!handler?.createSTT) {
       throw new Error(`STT not supported for provider: ${provider}`);
-  }
-  if (opts && opts.model) {
-    opts = { ...opts, model: sanitizeModelId(opts.model) };
   }
   return handler.createSTT(opts);
 }
 
 function createLLM(provider, opts) {
-  if (provider === 'openai-glass') provider = 'openai';
-
   const handler = PROVIDERS[provider]?.handler();
   if (!handler?.createLLM) {
       throw new Error(`LLM not supported for provider: ${provider}`);
-  }
-  if (opts && opts.model) {
-    opts = { ...opts, model: sanitizeModelId(opts.model) };
   }
   return handler.createLLM(opts);
 }
 
 function createStreamingLLM(provider, opts) {
-  if (provider === 'openai-glass') provider = 'openai';
-  
   const handler = PROVIDERS[provider]?.handler();
   if (!handler?.createStreamingLLM) {
       throw new Error(`Streaming LLM not supported for provider: ${provider}`);
-  }
-  if (opts && opts.model) {
-    opts = { ...opts, model: sanitizeModelId(opts.model) };
   }
   return handler.createStreamingLLM(opts);
 }
@@ -142,26 +89,15 @@ function getProviderClass(providerId) {
     const providerConfig = PROVIDERS[providerId];
     if (!providerConfig) return null;
     
-    // Handle special cases for glass providers
-    let actualProviderId = providerId;
-    if (providerId === 'openai-glass') {
-        actualProviderId = 'openai';
-    }
-    
-    // The handler function returns the module, from which we get the class.
     const module = providerConfig.handler();
     
-    // Map provider IDs to their actual exported class names
     const classNameMap = {
         'openai': 'OpenAIProvider',
         'anthropic': 'AnthropicProvider',
         'gemini': 'GeminiProvider',
-        'deepgram': 'DeepgramProvider',
-        'ollama': 'OllamaProvider',
-        'whisper': 'WhisperProvider'
     };
     
-    const className = classNameMap[actualProviderId];
+    const className = classNameMap[providerId];
     return className ? module[className] : null;
 }
 

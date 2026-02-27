@@ -13,6 +13,9 @@ publish:
     repo: glass
     releaseType: draft
 
+# Run custom script after signing to notarize the app
+afterSign: ./notarize.js
+
 # Protocols configuration for deep linking
 protocols:
     name: PickleGlass Protocol

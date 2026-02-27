@@ -30,15 +30,15 @@ class GeminiProvider {
  * Creates a Gemini STT session
  * @param {object} opts - Configuration options
  * @param {string} opts.apiKey - Gemini API key
- * @param {string} [opts.language='en-US'] - Language code
+ * @param {string} [opts.language='ru-RU'] - Language code
  * @param {object} [opts.callbacks] - Event callbacks
  * @returns {Promise<object>} STT session
  */
-async function createSTT({ apiKey, language = "en-US", callbacks = {}, ...config }) {
+async function createSTT({ apiKey, language = "ru-RU", callbacks = {}, ...config }) {
   const liveClient = new GoogleGenAI({ vertexai: false, apiKey })
 
   // Language code BCP-47 conversion
-  const lang = language.includes("-") ? language : `${language}-US`
+  const lang = language.includes("-") ? language : `${language}-RU`
 
   const session = await liveClient.live.connect({
 

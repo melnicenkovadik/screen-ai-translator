@@ -20,7 +20,8 @@ const authService = require('./features/common/services/authService');
 const path = require('node:path');
 const express = require('express');
 const fetch = require('node-fetch');
-const { autoUpdater } = require('electron-updater');
+// Auto-updater disabled for security
+// const { autoUpdater } = require('electron-updater');
 const { EventEmitter } = require('events');
 const askService = require('./features/ask/askService');
 const settingsService = require('./features/settings/settingsService');
@@ -230,8 +231,7 @@ app.whenReady().then(async () => {
         );
     }
 
-    // initAutoUpdater should be called after auth is initialized
-    initAutoUpdater();
+    // Auto-updater disabled
 
     // Process any pending deep link after everything is initialized
     if (pendingDeepLinkUrl) {

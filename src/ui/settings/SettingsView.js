@@ -423,6 +423,74 @@ export class SettingsView extends LitElement {
         }
         .model-status.installed { color: rgba(0, 255, 0, 0.8); }
         .model-status.not-installed { color: rgba(255, 200, 0, 0.8); }
+
+        .inline-models {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-top: 4px;
+        }
+        .model-row {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+        .model-row label {
+            font-size: 9px;
+            color: rgba(255,255,255,0.5);
+            width: 24px;
+            flex-shrink: 0;
+            margin: 0;
+        }
+        .model-row select {
+            flex: 1;
+            background: rgba(0,0,0,0.3);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 4px;
+            padding: 3px 6px;
+            font-size: 10px;
+            outline: none;
+            cursor: pointer;
+        }
+        .model-row select option {
+            background: #1a1a1a;
+            color: white;
+        }
+        .custom-model-row {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            margin-top: 2px;
+        }
+        .custom-model-row input {
+            flex: 1;
+            background: rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.15);
+            color: white;
+            border-radius: 4px;
+            padding: 3px 6px;
+            font-size: 10px;
+            box-sizing: border-box;
+        }
+        .custom-model-row input::placeholder {
+            color: rgba(255,255,255,0.3);
+        }
+        .custom-model-row button {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            color: rgba(255,255,255,0.7);
+            border-radius: 4px;
+            padding: 3px 6px;
+            font-size: 9px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.15s ease;
+        }
+        .custom-model-row button:hover {
+            background: rgba(255,255,255,0.15);
+            color: white;
+        }
         .install-progress {
             flex: 1;
             height: 4px;
@@ -776,10 +844,27 @@ export class SettingsView extends LitElement {
         await window.api.settingsView.setSelectedModel({ type, modelId });
         if (type === 'llm') this.selectedLlm = modelId;
         if (type === 'stt') this.selectedStt = modelId;
-        this.isLlmListVisible = false;
-        this.isSttListVisible = false;
         this.saving = false;
         this.requestUpdate();
+    }
+
+    async selectCustomModel(providerId, type) {
+        const input = this.shadowRoot.querySelector(`#custom-model-${providerId}`);
+        const modelId = input?.value?.trim();
+        if (!modelId) return;
+        this.saving = true;
+        await window.api.settingsView.setSelectedModel({ type, modelId, provider: providerId });
+        if (type === 'llm') this.selectedLlm = modelId;
+        if (type === 'stt') this.selectedStt = modelId;
+        input.value = '';
+        this.saving = false;
+        this.requestUpdate();
+    }
+
+    handleModelDropdownChange(providerId, type, event) {
+        const modelId = event?.target?.value;
+        if (!modelId) return;
+        this.selectModel(type, modelId);
     }
     
     async refreshOllamaStatus() {
@@ -1189,175 +1274,77 @@ export class SettingsView extends LitElement {
             `;
         }
 
-        const loggedIn = !!this.firebaseUser;
-
         const apiKeyManagementHTML = html`
             <div class="api-key-section">
                 ${Object.entries(this.providerConfig)
-                    .filter(([id, config]) => !id.includes('-glass'))
                     .map(([id, config]) => {
-                        if (id === 'ollama') {
-                            // Special UI for Ollama
-                            return html`
-                                <div class="provider-key-group">
-                                    <label>${config.name} (Local)</label>
-                                    ${this.ollamaStatus.installed && this.ollamaStatus.running ? html`
-                                        <div style="padding: 8px; background: rgba(0,255,0,0.1); border-radius: 4px; font-size: 11px; color: rgba(0,255,0,0.8);">
-                                            ✓ Ollama is running
-                                        </div>
-                                        <button class="settings-button full-width danger" @click=${this.handleOllamaShutdown}>
-                                            Stop Ollama Service
-                                        </button>
-                                    ` : this.ollamaStatus.installed ? html`
-                                        <div style="padding: 8px; background: rgba(255,200,0,0.1); border-radius: 4px; font-size: 11px; color: rgba(255,200,0,0.8);">
-                                            ⚠ Ollama installed but not running
-                                        </div>
-                                        <button class="settings-button full-width" @click=${() => this.handleSaveKey(id)}>
-                                            Start Ollama
-                                        </button>
-                                    ` : html`
-                                        <div style="padding: 8px; background: rgba(255,100,100,0.1); border-radius: 4px; font-size: 11px; color: rgba(255,100,100,0.8);">
-                                            ✗ Ollama not installed
-                                        </div>
-                                        <button class="settings-button full-width" @click=${() => this.handleSaveKey(id)}>
-                                            Install & Setup Ollama
-                                        </button>
-                                    `}
-                                </div>
-                            `;
-                        }
-                        
-                        if (id === 'whisper') {
-                            // Simplified UI for Whisper without model selection
-                            return html`
-                                <div class="provider-key-group">
-                                    <label>${config.name} (Local STT)</label>
-                                    ${this.apiKeys[id] === 'local' ? html`
-                                        <div style="padding: 8px; background: rgba(0,255,0,0.1); border-radius: 4px; font-size: 11px; color: rgba(0,255,0,0.8); margin-bottom: 8px;">
-                                            ✓ Whisper is enabled
-                                        </div>
-                                        <button class="settings-button full-width danger" @click=${() => this.handleClearKey(id)}>
-                                            Disable Whisper
-                                        </button>
-                                    ` : html`
-                                        <button class="settings-button full-width" @click=${() => this.handleSaveKey(id)}>
-                                            Enable Whisper STT
-                                        </button>
-                                    `}
-                                </div>
-                            `;
-                        }
-                        
-                        // Regular providers
+                        const hasKey = !!(this.apiKeys[id]);
+                        const providerLlm = config.llmModels || [];
+                        const providerStt = config.sttModels || [];
                         return html`
                         <div class="provider-key-group">
                             <label for="key-input-${id}">${config.name} API Key</label>
                             <input type="password" id="key-input-${id}"
-                                placeholder=${loggedIn ? "Using Pickle's Key" : `Enter ${config.name} API Key`} 
+                                placeholder=${`Enter ${config.name} API Key`} 
                                 .value=${this.apiKeys[id] || ''}
                             >
                             <div class="key-buttons">
-                               <button class="settings-button" @click=${() => this.handleSaveKey(id)} >Save</button>
-                               <button class="settings-button danger" @click=${() => this.handleClearKey(id)} }>Clear</button>
+                               <button class="settings-button" @click=${() => this.handleSaveKey(id)}>Save</button>
+                               <button class="settings-button danger" @click=${() => this.handleClearKey(id)}>Clear</button>
                             </div>
+                            ${hasKey ? html`
+                                <div class="inline-models">
+                                    ${providerLlm.length > 0 ? html`
+                                        <div class="model-row">
+                                            <label>LLM</label>
+                                            <select @change=${(e) => this.handleModelDropdownChange(id, 'llm', e)}>
+                                                ${providerLlm.map(m => html`
+                                                    <option value=${m.id} ?selected=${this.selectedLlm === m.id}>${m.name}</option>
+                                                `)}
+                                                ${this.selectedLlm && !providerLlm.some(m => m.id === this.selectedLlm) && this.getProviderForModel('llm', this.selectedLlm) === id ? html`
+                                                    <option value=${this.selectedLlm} selected>${this.selectedLlm} (custom)</option>
+                                                ` : ''}
+                                            </select>
+                                        </div>
+                                    ` : ''}
+                                    ${providerStt.length > 0 ? html`
+                                        <div class="model-row">
+                                            <label>STT</label>
+                                            <select @change=${(e) => this.handleModelDropdownChange(id, 'stt', e)}>
+                                                ${providerStt.map(m => html`
+                                                    <option value=${m.id} ?selected=${this.selectedStt === m.id}>${m.name}</option>
+                                                `)}
+                                                ${this.selectedStt && !providerStt.some(m => m.id === this.selectedStt) && this.getProviderForModel('stt', this.selectedStt) === id ? html`
+                                                    <option value=${this.selectedStt} selected>${this.selectedStt} (custom)</option>
+                                                ` : ''}
+                                            </select>
+                                        </div>
+                                    ` : ''}
+                                    <div class="custom-model-row">
+                                        <input type="text" id="custom-model-${id}" placeholder="Custom model ID...">
+                                        ${providerLlm.length > 0 ? html`
+                                            <button @click=${() => this.selectCustomModel(id, 'llm')}>LLM</button>
+                                        ` : ''}
+                                        ${providerStt.length > 0 ? html`
+                                            <button @click=${() => this.selectCustomModel(id, 'stt')}>STT</button>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            ` : ''}
                         </div>
                         `;
                     })}
             </div>
         `;
         
-        const getModelName = (type, id) => {
-            const models = type === 'llm' ? this.availableLlmModels : this.availableSttModels;
-            const model = models.find(m => m.id === id);
-            return model ? model.name : id;
-        }
-
-        const modelSelectionHTML = html`
-            <div class="model-selection-section">
-                <div class="model-select-group">
-                    <label>LLM Model: <strong>${getModelName('llm', this.selectedLlm) || 'Not Set'}</strong></label>
-                    <button class="settings-button full-width" @click=${() => this.toggleModelList('llm')} ?disabled=${this.saving || this.availableLlmModels.length === 0}>
-                        Change LLM Model
-                    </button>
-                    ${this.isLlmListVisible ? html`
-                        <div class="model-list">
-                            ${this.availableLlmModels.map(model => {
-                                const isOllama = this.getProviderForModel('llm', model.id) === 'ollama';
-                                const ollamaModel = isOllama ? this.ollamaModels.find(m => m.name === model.id) : null;
-                                const isInstalling = this.installingModels[model.id] !== undefined;
-                                const installProgress = this.installingModels[model.id] || 0;
-                                
-                                return html`
-                                    <div class="model-item ${this.selectedLlm === model.id ? 'selected' : ''}" 
-                                         @click=${() => this.selectModel('llm', model.id)}>
-                                        <span>${model.name}</span>
-                                        ${isOllama ? html`
-                                            ${isInstalling ? html`
-                                                <div class="install-progress">
-                                                    <div class="install-progress-bar" style="width: ${installProgress}%"></div>
-                                </div>
-                                            ` : ollamaModel?.installed ? html`
-                                                <span class="model-status installed">✓ Installed</span>
-                                            ` : html`
-                                                <span class="model-status not-installed">Click to install</span>
-                                            `}
-                                        ` : ''}
-                                    </div>
-                                `;
-                            })}
-                        </div>
-                    ` : ''}
-                </div>
-                <div class="model-select-group">
-                    <label>STT Model: <strong>${getModelName('stt', this.selectedStt) || 'Not Set'}</strong></label>
-                    <button class="settings-button full-width" @click=${() => this.toggleModelList('stt')} ?disabled=${this.saving || this.availableSttModels.length === 0}>
-                        Change STT Model
-                    </button>
-                    ${this.isSttListVisible ? html`
-                        <div class="model-list">
-                            ${this.availableSttModels.map(model => {
-                                const isWhisper = this.getProviderForModel('stt', model.id) === 'whisper';
-                                const whisperModel = isWhisper && this.providerConfig?.whisper?.sttModels 
-                                    ? this.providerConfig.whisper.sttModels.find(m => m.id === model.id) 
-                                    : null;
-                                const isInstalling = this.installingModels[model.id] !== undefined;
-                                const installProgress = this.installingModels[model.id] || 0;
-                                
-                                return html`
-                                    <div class="model-item ${this.selectedStt === model.id ? 'selected' : ''}" 
-                                         @click=${() => this.selectModel('stt', model.id)}>
-                                        <span>${model.name}</span>
-                                        ${isWhisper ? html`
-                                            ${isInstalling ? html`
-                                                <div class="install-progress">
-                                                    <div class="install-progress-bar" style="width: ${installProgress}%"></div>
-                                                </div>
-                                            ` : whisperModel?.installed ? html`
-                                                <span class="model-status installed">✓ Installed</span>
-                                            ` : html`
-                                                <span class="model-status not-installed">Not Installed</span>
-                                            `}
-                                        ` : ''}
-                                    </div>
-                                `;
-                            })}
-                        </div>
-                    ` : ''}
-                </div>
-            </div>
-        `;
+        
 
         return html`
             <div class="settings-container">
                 <div class="header-section">
                     <div>
                         <h1 class="app-title">Pickle Glass</h1>
-                        <div class="account-info">
-                            ${this.firebaseUser
-                                ? html`Account: ${this.firebaseUser.email || 'Logged In'}`
-                                : `Account: Not Logged In`
-                            }
-                        </div>
+                        <div class="account-info">Local Mode</div>
                     </div>
                     <div class="invisibility-icon ${this.isContentProtectionOn ? 'visible' : ''}" title="Invisibility is On">
                         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1367,7 +1354,6 @@ export class SettingsView extends LitElement {
                 </div>
 
                 ${apiKeyManagementHTML}
-                ${modelSelectionHTML}
 
                 <div class="buttons-section" style="border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 6px; margin-top: 6px;">
                     <button class="settings-button full-width" @click=${this.openShortcutEditor}>
@@ -1420,10 +1406,6 @@ export class SettingsView extends LitElement {
                     <button class="settings-button full-width" @click=${this.handlePersonalize}>
                         <span>Personalize / Meeting Notes</span>
                     </button>
-                    <button class="settings-button full-width" @click=${this.handleToggleAutoUpdate} ?disabled=${this.autoUpdateLoading}>
-                        <span>Automatic Updates: ${this.autoUpdateEnabled ? 'On' : 'Off'}</span>
-                    </button>
-                    
                     <div class="move-buttons">
                         <button class="settings-button half-width" @click=${this.handleMoveLeft}>
                             <span>← Move</span>
@@ -1437,23 +1419,9 @@ export class SettingsView extends LitElement {
                         <span>${this.isContentProtectionOn ? 'Disable Invisibility' : 'Enable Invisibility'}</span>
                     </button>
                     
-                    <div class="bottom-buttons">
-                        ${this.firebaseUser
-                            ? html`
-                                <button class="settings-button half-width danger" @click=${this.handleFirebaseLogout}>
-                                    <span>Logout</span>
-                                </button>
-                                `
-                            : html`
-                                <button class="settings-button half-width" @click=${this.handleUsePicklesKey}>
-                                    <span>Login</span>
-                                </button>
-                                `
-                        }
-                        <button class="settings-button half-width danger" @click=${this.handleQuit}>
-                            <span>Quit</span>
-                        </button>
-                    </div>
+                    <button class="settings-button full-width danger" @click=${this.handleQuit}>
+                        <span>Quit</span>
+                    </button>
                 </div>
             </div>
         `;

@@ -40,11 +40,11 @@ class AnthropicProvider {
  * You might want to use a different STT service or implement a workaround
  * @param {object} opts - Configuration options
  * @param {string} opts.apiKey - Anthropic API key
- * @param {string} [opts.language='en'] - Language code
+ * @param {string} [opts.language='ru'] - Language code
  * @param {object} [opts.callbacks] - Event callbacks
  * @returns {Promise<object>} STT session placeholder
  */
-async function createSTT({ apiKey, language = "en", callbacks = {}, ...config }) {
+async function createSTT({ apiKey, language = "ru", callbacks = {}, ...config }) {
   console.warn("[Anthropic] STT not natively supported. Consider using OpenAI or Gemini for STT.")
 
   // Return a mock STT session that doesn't actually do anything

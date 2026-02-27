@@ -177,11 +177,18 @@ contextBridge.exposeInMainWorld('api', {
     
     // Listeners
     onSessionStateChanged: (callback) => ipcRenderer.on('session-state-changed', callback),
-    removeOnSessionStateChanged: (callback) => ipcRenderer.removeListener('session-state-changed', callback)
+    removeOnSessionStateChanged: (callback) => ipcRenderer.removeListener('session-state-changed', callback),
+
+    // Language controls
+    getLanguage: () => ipcRenderer.invoke('listen:getLanguage'),
+    setLanguage: (lang) => ipcRenderer.invoke('listen:setLanguage', lang)
   },
 
   // src/ui/listen/stt/SttView.js
   sttView: {
+    // Translation
+    translateText: (text, targetLang) => ipcRenderer.invoke('translate:text', { text, targetLang }),
+
     // Listeners
     onSttUpdate: (callback) => ipcRenderer.on('stt-update', callback),
     removeOnSttUpdate: (callback) => ipcRenderer.removeListener('stt-update', callback)

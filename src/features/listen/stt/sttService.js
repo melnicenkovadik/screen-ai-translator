@@ -149,8 +149,8 @@ class SttService {
         this.theirCompletionTimer = setTimeout(() => this.flushTheirCompletion(), COMPLETION_DEBOUNCE_MS);
     }
 
-    async initializeSttSessions(language = 'en') {
-        const effectiveLanguage = process.env.OPENAI_TRANSCRIBE_LANG || language || 'en';
+    async initializeSttSessions(language = 'ru') {
+        const effectiveLanguage = process.env.OPENAI_TRANSCRIBE_LANG || language || 'ru';
 
         const modelInfo = await modelStateService.getCurrentModelInfo('stt');
         if (!modelInfo || !modelInfo.apiKey) {
@@ -454,11 +454,26 @@ class SttService {
             },
         };
         
+        // Only Deepgram supports true auto-detect via detect_language. For others, fallback to 'ru'.
+        const normalizedLanguage = (effectiveLanguage || 'ru');
+
+        // Normalize per-provider
+        let providerLanguage = normalizedLanguage;
+        if (normalizedLanguage === 'auto') {
+            if (this.modelInfo.provider === 'deepgram') {
+                providerLanguage = 'auto'; // Deepgram detect_language
+            } else {
+                providerLanguage = 'ru';   // Fallback for providers without auto
+            }
+        } else {
+            if (this.modelInfo.provider === 'openai') {
+                providerLanguage = normalizedLanguage.split('-')[0];
+            }
+        }
+
         const sttOptions = {
             apiKey: this.modelInfo.apiKey,
-            language: effectiveLanguage,
-            usePortkey: this.modelInfo.provider === 'openai-glass',
-            portkeyVirtualKey: this.modelInfo.provider === 'openai-glass' ? this.modelInfo.apiKey : undefined,
+            language: providerLanguage,
         };
 
         // Add sessionType for Whisper to distinguish between My and Their sessions
@@ -514,7 +529,7 @@ class SttService {
      * Gracefully tears down then recreates the STT sessions. Should be invoked
      * on a timer to avoid provider-side hard timeouts.
      */
-    async renewSessions(language = 'en') {
+    async renewSessions(language = 'ru') {
         if (!this.isSessionActive()) {
             console.warn('[SttService] renewSessions called but no active session.');
             return;

@@ -38,7 +38,7 @@ class DeepgramProvider {
 
 function createSTT({
     apiKey,
-    language = 'en-US',
+    language = 'ru-RU',
     sampleRate = 24000,
     callbacks = {},
   }) {
@@ -46,11 +46,17 @@ function createSTT({
       model: 'nova-3',
       encoding: 'linear16',
       sample_rate: sampleRate.toString(),
-      language,
       smart_format: 'true',
       interim_results: 'true',
       channels: '1',
     });
+
+    // If language is 'auto', enable Deepgram's auto language detection
+    if (language && language.toLowerCase() === 'auto') {
+      qs.set('detect_language', 'true');
+    } else if (language) {
+      qs.set('language', language);
+    }
   
     const url = `wss://api.deepgram.com/v1/listen?${qs}`;
   
