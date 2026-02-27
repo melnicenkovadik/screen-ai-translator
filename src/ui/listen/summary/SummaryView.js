@@ -3,7 +3,8 @@ import { html, css, LitElement } from '../../assets/lit-core-2.7.4.min.js';
 export class SummaryView extends LitElement {
     static styles = css`
         :host {
-            display: block;
+            display: flex;
+            flex-direction: column;
             width: 100%;
             height: 100%;
             min-height: 0;
@@ -79,7 +80,8 @@ export class SummaryView extends LitElement {
         }
 
         .insights-container {
-            overflow-y: auto;
+            overflow-y: auto !important;
+            overflow-x: hidden;
             padding: 12px 16px 16px 16px;
             position: relative;
             z-index: 1;
@@ -87,6 +89,12 @@ export class SummaryView extends LitElement {
             flex: 1;
             height: 100%;
             box-sizing: border-box;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .insights-container, .insights-container * {
+            pointer-events: auto !important;
         }
 
         /* Visibility handled by parent component */

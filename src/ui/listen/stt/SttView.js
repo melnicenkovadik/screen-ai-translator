@@ -30,6 +30,8 @@ export class SttView extends LitElement {
             display: flex;
             gap: 6px;
             align-items: center;
+            flex-wrap: wrap;
+            justify-content: flex-end;
         }
 
         .lang-select {
@@ -52,16 +54,24 @@ export class SttView extends LitElement {
         }
 
         .transcription-container {
-            overflow-y: auto;
+            overflow-y: auto !important;
+            overflow-x: hidden;
             padding: 8px 12px 24px 12px;
             scroll-padding-bottom: 24px;
             display: flex;
             flex-direction: column;
             gap: 4px;
             min-height: 0;
+            height: 100%;
             position: relative;
             z-index: 1;
             flex: 1;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .transcription-container, .transcription-container * {
+            pointer-events: auto !important;
         }
 
         .jump-to-latest {
@@ -136,6 +146,8 @@ export class SttView extends LitElement {
 
         .message-text {
             white-space: pre-wrap;
+            user-select: text !important;
+            cursor: text !important;
         }
 
         .message-actions {
@@ -222,7 +234,7 @@ export class SttView extends LitElement {
             font-style: italic;
         }
 
-        .auto-translate-toggle {
+        .toolbar-toggle {
             display: flex;
             align-items: center;
             gap: 5px;
@@ -236,11 +248,11 @@ export class SttView extends LitElement {
             white-space: nowrap;
         }
 
-        .auto-translate-toggle:hover {
+        .toolbar-toggle:hover {
             background: rgba(255, 255, 255, 0.08);
         }
 
-        .auto-translate-toggle.active {
+        .toolbar-toggle.active {
             color: rgba(255, 255, 255, 0.95);
         }
 
@@ -336,6 +348,18 @@ export class SttView extends LitElement {
             max-width: 90px;
         }
 
+        .force-seconds-select {
+            background: rgba(255, 255, 255, 0.12);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            padding: 3px 6px;
+            font-size: 10px;
+            outline: none;
+            cursor: pointer;
+            max-width: 60px;
+        }
+
         .custom-context-input {
             background: rgba(255, 255, 255, 0.1);
             color: #fff;
@@ -367,6 +391,9 @@ export class SttView extends LitElement {
         targetLanguage: { type: String },
         sourceLanguage: { type: String },
         autoTranslate: { type: Boolean },
+        autoScroll: { type: Boolean },
+        forceTranslateSeconds: { type: Number },
+        micInputEnabled: { type: Boolean },
         contextMode: { type: String },
         customContext: { type: String },
         showJumpToLatest: { type: Boolean },
@@ -378,7 +405,7 @@ export class SttView extends LitElement {
         this.isVisible = true;
         this.messageIdCounter = 0;
         this._shouldScrollAfterUpdate = false;
-        this._autoScrollEnabled = true;
+        this._isNearBottom = true;
         this._containerEl = null;
 
         this.handleSttUpdate = this.handleSttUpdate.bind(this);
@@ -389,10 +416,17 @@ export class SttView extends LitElement {
         this.clearHistory = this.clearHistory.bind(this);
         this.scrollToBottom = this.scrollToBottom.bind(this);
         this._onContainerScroll = this._onContainerScroll.bind(this);
+        this.toggleAutoScroll = this.toggleAutoScroll.bind(this);
+        this.handleForceTranslateSecondsChange = this.handleForceTranslateSecondsChange.bind(this);
+        this.toggleMicInput = this.toggleMicInput.bind(this);
+        this._forceTranslateTick = this._forceTranslateTick.bind(this);
 
         this.targetLanguage = 'ru';
         this.sourceLanguage = 'auto';
         this.autoTranslate = false;
+        this.autoScroll = true;
+        this.forceTranslateSeconds = 0;
+        this.micInputEnabled = true;
         this.contextMode = 'none';
         this.customContext = '';
         this.showJumpToLatest = false;
@@ -401,12 +435,20 @@ export class SttView extends LitElement {
         this._activeTranslations = 0;
         this._maxConcurrentTranslations = 3;
         this._jumpVisibilityRaf = null;
+        this._forceTranslateTimer = null;
+        this._liveDebounceTimer = null;
+        this._segmentedThemPrefix = '';
+        this._partialTranslateState = new Map();
+        this._streamRequestId = 0;
+        this._streamChunkHandlers = new Map();
+        this._handleStreamChunk = this._handleStreamChunk.bind(this);
     }
 
     connectedCallback() {
         super.connectedCallback();
         if (window.api) {
             window.api.sttView.onSttUpdate(this.handleSttUpdate);
+            window.api.sttView.onTranslateStreamChunk(this._handleStreamChunk);
         }
 
         try {
@@ -414,6 +456,14 @@ export class SttView extends LitElement {
             if (saved) this.targetLanguage = saved;
             const savedAuto = localStorage.getItem('sttAutoTranslate');
             if (savedAuto !== null) this.autoTranslate = savedAuto === 'true';
+            const savedAutoScroll = localStorage.getItem('sttAutoScroll');
+            if (savedAutoScroll !== null) this.autoScroll = savedAutoScroll === 'true';
+            const savedForceSeconds = Number(localStorage.getItem('sttForceTranslateSeconds'));
+            if (Number.isFinite(savedForceSeconds) && savedForceSeconds >= 0) {
+                this.forceTranslateSeconds = savedForceSeconds;
+            }
+            const savedMicInputEnabled = localStorage.getItem('sttMicInputEnabled');
+            if (savedMicInputEnabled !== null) this.micInputEnabled = savedMicInputEnabled === 'true';
             const savedCtx = localStorage.getItem('sttContextMode');
             if (savedCtx) this.contextMode = savedCtx;
             const savedCustomCtx = localStorage.getItem('sttCustomContext');
@@ -430,7 +480,11 @@ export class SttView extends LitElement {
             } catch {}
         }, 0);
 
-        this.updateComplete.then(() => this._attachContainerScrollListener());
+        this.updateComplete.then(() => {
+            this._attachContainerScrollListener();
+            this._syncMicInputState();
+        });
+        this._startForceTranslateTimer();
     }
 
     disconnectedCallback() {
@@ -439,83 +493,416 @@ export class SttView extends LitElement {
             cancelAnimationFrame(this._jumpVisibilityRaf);
             this._jumpVisibilityRaf = null;
         }
+        this._stopForceTranslateTimer();
         this._detachContainerScrollListener();
         if (window.api) {
             window.api.sttView.removeOnSttUpdate(this.handleSttUpdate);
+            window.api.sttView.removeOnTranslateStreamChunk(this._handleStreamChunk);
         }
     }
 
     resetTranscript() {
         this.sttMessages = [];
+        this._pendingTranslations.clear();
+        this._translateQueue = [];
+        this._activeTranslations = 0;
+        this._resetForceTranslateSessionState();
+        this._isNearBottom = true;
+        this.showJumpToLatest = false;
         this.requestUpdate();
+    }
+
+    _emitMessagesUpdated() {
+        this.dispatchEvent(new CustomEvent('stt-messages-updated', {
+            detail: { messages: this.sttMessages },
+            bubbles: true
+        }));
+    }
+
+    _findLastPartialIdxBySpeaker(speaker) {
+        for (let i = this.sttMessages.length - 1; i >= 0; i--) {
+            const m = this.sttMessages[i];
+            if (m.speaker === speaker && m.isPartial) return i;
+        }
+        return -1;
+    }
+
+    _isThemSpeaker(speaker) {
+        return String(speaker || '').toLowerCase() === 'them';
+    }
+
+    _appendContext(existingText, newText) {
+        const next = (newText || '').trim();
+        if (!next) return (existingText || '').trim();
+        if (!existingText) return next;
+        return `${existingText} ${next}`.trim();
+    }
+
+    _stripForcedPrefix(text, alreadyEmittedText) {
+        const source = (text || '').trim();
+        const emitted = (alreadyEmittedText || '').trim();
+        if (!source || !emitted) return source;
+
+        if (source.startsWith(emitted)) {
+            return source.slice(emitted.length).trimStart();
+        }
+
+        const maxOverlap = Math.min(source.length, emitted.length);
+        for (let overlap = maxOverlap; overlap > 0; overlap--) {
+            if (emitted.slice(-overlap) === source.slice(0, overlap)) {
+                return source.slice(overlap).trimStart();
+            }
+        }
+
+        return source;
+    }
+
+    _resetForceTranslateSessionState() {
+        this._segmentedThemPrefix = '';
+        this._partialTranslateState.clear();
+    }
+
+    _isForceTranslateActive() {
+        return this.forceTranslateSeconds > 0;
+    }
+
+    _getForceTranslateIntervalMs() {
+        return Math.max(1000, this.forceTranslateSeconds * 1000);
+    }
+
+    _getThemTranslationContext(maxChars = 900) {
+        const context = this.sttMessages
+            .filter(msg => this._isThemSpeaker(msg.speaker) && msg.isFinal && msg.text?.trim())
+            .map(msg => msg.text.trim())
+            .join(' ')
+            .trim();
+
+        if (!context) return '';
+        if (context.length <= maxChars) return context;
+        return context.slice(-maxChars).trimStart();
+    }
+
+    _findAdaptiveSplitIndex(text) {
+        const source = (text || '').trim();
+        if (!source) return -1;
+
+        const minChars = 42;
+        if (source.length < minChars) return -1;
+
+        let splitAt = -1;
+        const sentenceRe = /[.!?…]+(?:["'”’)\]]+)?\s+/g;
+        let match;
+        while ((match = sentenceRe.exec(source)) !== null) {
+            const candidate = match.index + match[0].length;
+            if (candidate >= minChars) splitAt = candidate;
+        }
+        if (splitAt !== -1) return splitAt;
+
+        const clauseRe = /[,;:]\s+/g;
+        while ((match = clauseRe.exec(source)) !== null) {
+            const candidate = match.index + match[0].length;
+            if (candidate >= minChars + 14) splitAt = candidate;
+        }
+        if (splitAt !== -1) return splitAt;
+
+        if (source.length < minChars * 2) return -1;
+
+        const target = Math.floor(source.length * 0.72);
+        const from = Math.max(minChars, target - 40);
+        const to = Math.min(source.length - 1, target + 80);
+
+        for (let i = to; i >= from; i--) {
+            if (/\s/.test(source[i])) return i + 1;
+        }
+        return -1;
+    }
+
+    _maybeSegmentThemPartial() {
+        if (!this._isForceTranslateActive()) return false;
+
+        const partialIdx = this._findLastPartialIdxBySpeaker('Them');
+        if (partialIdx === -1) return false;
+
+        const partialMsg = this.sttMessages[partialIdx];
+        const text = (partialMsg?.text || '').trim();
+        if (!text) return false;
+
+        const startedAt = partialMsg.partialStartedAt || Date.now();
+        if (Date.now() - startedAt < this._getForceTranslateIntervalMs()) return false;
+
+        const splitAt = this._findAdaptiveSplitIndex(text);
+        if (splitAt <= 0) return false;
+
+        const segmentText = text.slice(0, splitAt).trim();
+        const remainderText = text.slice(splitAt).trimStart();
+        if (!segmentText) return false;
+
+        const contextBefore = this._getThemTranslationContext();
+        const newMessages = [...this.sttMessages];
+        const finalizedMsg = {
+            ...partialMsg,
+            text: segmentText,
+            translatedText: null,
+            isPartial: false,
+            isFinal: true,
+            partialStartedAt: null,
+            isForcedSegment: true,
+        };
+
+        newMessages[partialIdx] = finalizedMsg;
+        this._partialTranslateState.delete(finalizedMsg.id);
+
+        if (remainderText) {
+            newMessages.splice(partialIdx + 1, 0, {
+                id: this.messageIdCounter++,
+                speaker: partialMsg.speaker,
+                text: remainderText,
+                isPartial: true,
+                isFinal: false,
+                partialStartedAt: Date.now(),
+            });
+        }
+
+        this._markShouldScrollAfterUpdate();
+        this.sttMessages = newMessages;
+        this._segmentedThemPrefix = this._appendContext(this._segmentedThemPrefix, segmentText);
+
+        const shouldTranslate = this.autoTranslate || this._isForceTranslateActive();
+        if (shouldTranslate && !this._pendingTranslations.has(finalizedMsg.id)) {
+            this._triggerAutoTranslate(finalizedMsg, { contextBefore });
+        }
+        this._emitMessagesUpdated();
+        return true;
+    }
+
+    async _maybeTranslateThemPartial() {
+        if (!this._isForceTranslateActive() || !window.api?.sttView?.translateText) return;
+
+        const partialIdx = this._findLastPartialIdxBySpeaker('Them');
+        if (partialIdx === -1) return;
+
+        const partialMsg = this.sttMessages[partialIdx];
+        const text = partialMsg?.text?.trim();
+        if (!text) return;
+
+        let state = this._partialTranslateState.get(partialMsg.id);
+        if (!state) {
+            state = { inFlight: false, lastAt: 0, lastText: '', startedAt: 0 };
+            this._partialTranslateState.set(partialMsg.id, state);
+        }
+
+        const now = Date.now();
+        const intervalMs = this._getForceTranslateIntervalMs();
+
+        // Recover from stuck inFlight (e.g. hung API call) after 15s
+        if (state.inFlight && state.startedAt && now - state.startedAt > 15_000) {
+            console.warn('[SttView] Force-resetting stuck inFlight for msg', partialMsg.id);
+            state.inFlight = false;
+        }
+
+        if (state.inFlight) return;
+        if (state.lastText === text && now - state.lastAt < intervalMs) return;
+        if (now - state.lastAt < intervalMs) return;
+
+        state.inFlight = true;
+        state.lastAt = now;
+        state.lastText = text;
+        state.startedAt = now;
+
+        // Show loading indicator if no translation exists yet
+        if (!partialMsg.translatedText) {
+            this._updateMessageField(partialMsg.id, 'isTranslating', true);
+        }
+
+        const contextBefore = this._getThemTranslationContext();
+        const useStreaming = !!window.api?.sttView?.translateStream;
+        const requestId = useStreaming ? ++this._streamRequestId : null;
+        try {
+            if (useStreaming) {
+                this._streamChunkHandlers.set(requestId, (chunk) => {
+                    const latest = this.sttMessages.find(msg => msg.id === partialMsg.id);
+                    if (!latest || !latest.isPartial) return;
+                    const current = latest.translatedText || '';
+                    this._updateMessageField(partialMsg.id, 'translatedText', current + chunk);
+                });
+
+                const streamPromise = window.api.sttView.translateStream(requestId, text, this.targetLanguage, contextBefore);
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Translation timeout')), 12_000)
+                );
+                const result = await Promise.race([streamPromise, timeoutPromise]);
+                this._streamChunkHandlers.delete(requestId);
+
+                if (result?.success && result.translatedText) {
+                    const latest = this.sttMessages.find(msg => msg.id === partialMsg.id);
+                    if (latest && latest.isPartial) {
+                        this._updateMessageField(partialMsg.id, 'translatedText', result.translatedText);
+                    }
+                }
+            } else {
+                const translationPromise = window.api.sttView.translateText(text, this.targetLanguage, contextBefore);
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Translation timeout')), 12_000)
+                );
+                const result = await Promise.race([translationPromise, timeoutPromise]);
+
+                if (!result?.success || !result.translatedText) {
+                    console.warn('[SttView] Partial translation returned no result for msg', partialMsg.id);
+                    return;
+                }
+
+                const latest = this.sttMessages.find(msg => msg.id === partialMsg.id);
+                if (!latest || !latest.isPartial) return;
+                if (latest.translatedText === result.translatedText) return;
+
+                this._updateMessageField(partialMsg.id, 'translatedText', result.translatedText);
+            }
+        } catch (err) {
+            if (requestId) this._streamChunkHandlers.delete(requestId);
+            console.warn('[SttView] Live partial translation failed:', err.message || err);
+        } finally {
+            const latest = this.sttMessages.find(msg => msg.id === partialMsg.id);
+            if (!latest) {
+                this._partialTranslateState.delete(partialMsg.id);
+            } else {
+                state.inFlight = false;
+                state.startedAt = 0;
+                this._updateMessageField(partialMsg.id, 'isTranslating', false);
+            }
+        }
+    }
+
+    _startForceTranslateTimer() {
+        if (this._forceTranslateTimer) return;
+        this._forceTranslateTimer = setInterval(this._forceTranslateTick, 1000);
+    }
+
+    _stopForceTranslateTimer() {
+        if (!this._forceTranslateTimer) return;
+        clearInterval(this._forceTranslateTimer);
+        this._forceTranslateTimer = null;
+    }
+
+    _forceTranslateTick() {
+        if (!this._isForceTranslateActive()) return;
+
+        const didSegment = this._maybeSegmentThemPartial();
+        if (!didSegment) {
+            this._maybeTranslateThemPartial();
+        }
+    }
+
+    _markShouldScrollAfterUpdate() {
+        const container = this.shadowRoot?.querySelector('.transcription-container');
+        this._shouldScrollAfterUpdate = container ? (this.autoScroll && this._isNearBottom) : this.autoScroll;
     }
 
     handleSttUpdate(event, { speaker, text, isFinal, isPartial }) {
         if (text === undefined) return;
 
-        const container = this.shadowRoot.querySelector('.transcription-container');
-        this._shouldScrollAfterUpdate = container ? this._autoScrollEnabled : true;
-
-        const findLastPartialIdx = spk => {
-            for (let i = this.sttMessages.length - 1; i >= 0; i--) {
-                const m = this.sttMessages[i];
-                if (m.speaker === spk && m.isPartial) return i;
-            }
-            return -1;
-        };
+        this._markShouldScrollAfterUpdate();
 
         const newMessages = [...this.sttMessages];
-        const targetIdx = findLastPartialIdx(speaker);
+        const targetIdx = this._findLastPartialIdxBySpeaker(speaker);
+        const isThem = this._isThemSpeaker(speaker);
+        const forceActiveForSpeaker = this._isForceTranslateActive() && isThem;
+
+        let nextText = (typeof text === 'string' ? text : String(text || '')).trim();
+        if (forceActiveForSpeaker && (isPartial || isFinal)) {
+            nextText = this._stripForcedPrefix(nextText, this._segmentedThemPrefix);
+        }
 
         if (isPartial) {
+            if (!nextText) {
+                if (targetIdx !== -1) {
+                    this._partialTranslateState.delete(newMessages[targetIdx].id);
+                    newMessages.splice(targetIdx, 1);
+                    this.sttMessages = newMessages;
+                    this._emitMessagesUpdated();
+                }
+                return;
+            }
+
             if (targetIdx !== -1) {
+                const existing = newMessages[targetIdx];
                 newMessages[targetIdx] = {
-                    ...newMessages[targetIdx],
-                    text,
+                    ...existing,
+                    text: nextText,
                     isPartial: true,
                     isFinal: false,
+                    partialStartedAt: existing.partialStartedAt || Date.now(),
                 };
             } else {
                 newMessages.push({
                     id: this.messageIdCounter++,
                     speaker,
-                    text,
+                    text: nextText,
                     isPartial: true,
                     isFinal: false,
+                    partialStartedAt: Date.now(),
                 });
             }
-        } else if (isFinal) {
+
+            this.sttMessages = newMessages;
+            this._emitMessagesUpdated();
+
+            if (forceActiveForSpeaker) {
+                this._maybeTranslateThemPartial();
+            }
+            return;
+        }
+
+        if (!isFinal) return;
+
+        if (!nextText) {
             if (targetIdx !== -1) {
-                newMessages[targetIdx] = {
-                    ...newMessages[targetIdx],
-                    text,
-                    isPartial: false,
-                    isFinal: true,
-                };
-            } else {
-                newMessages.push({
-                    id: this.messageIdCounter++,
-                    speaker,
-                    text,
-                    isPartial: false,
-                    isFinal: true,
-                });
+                this._partialTranslateState.delete(newMessages[targetIdx].id);
+                newMessages.splice(targetIdx, 1);
+                this.sttMessages = newMessages;
+                this._emitMessagesUpdated();
             }
+            if (isThem) this._resetForceTranslateSessionState();
+            return;
+        }
+
+        const contextBefore = forceActiveForSpeaker ? this._getThemTranslationContext() : '';
+
+        let finalMsg;
+        if (targetIdx !== -1) {
+            const existing = newMessages[targetIdx];
+            newMessages[targetIdx] = {
+                ...existing,
+                text: nextText,
+                translatedText: existing.translatedText ? null : existing.translatedText,
+                isPartial: false,
+                isFinal: true,
+                partialStartedAt: null,
+            };
+            this._partialTranslateState.delete(existing.id);
+            finalMsg = newMessages[targetIdx];
+        } else {
+            finalMsg = {
+                id: this.messageIdCounter++,
+                speaker,
+                text: nextText,
+                isPartial: false,
+                isFinal: true,
+                partialStartedAt: null,
+            };
+            newMessages.push(finalMsg);
         }
 
         this.sttMessages = newMessages;
 
-        if (isFinal && this.autoTranslate) {
-            const finalMsg = newMessages.find(m => m.isFinal && m.text === text && !m.translatedText && !this._pendingTranslations.has(m.id));
-            if (finalMsg) {
-                this._triggerAutoTranslate(finalMsg);
-            }
+        const shouldTranslate = this.autoTranslate || forceActiveForSpeaker;
+        if (shouldTranslate && !this._pendingTranslations.has(finalMsg.id)) {
+            this._triggerAutoTranslate(finalMsg, { contextBefore });
         }
-        
-        this.dispatchEvent(new CustomEvent('stt-messages-updated', {
-            detail: { messages: this.sttMessages },
-            bubbles: true
-        }));
+
+        if (isThem) {
+            this._resetForceTranslateSessionState();
+        }
+        this._emitMessagesUpdated();
     }
 
     scrollToBottom() {
@@ -523,7 +910,7 @@ export class SttView extends LitElement {
             const container = this.shadowRoot.querySelector('.transcription-container');
             if (container) {
                 container.scrollTop = container.scrollHeight;
-                this._autoScrollEnabled = true;
+                this._isNearBottom = true;
                 this.showJumpToLatest = false;
             }
         });
@@ -547,8 +934,8 @@ export class SttView extends LitElement {
         const container = this._containerEl;
         if (!container) return;
         const distanceFromBottom = container.scrollHeight - (container.scrollTop + container.clientHeight);
-        this._autoScrollEnabled = distanceFromBottom <= 8;
-        const shouldShow = !this._autoScrollEnabled && this.sttMessages.length > 0;
+        this._isNearBottom = distanceFromBottom <= 8;
+        const shouldShow = !this._isNearBottom && this.sttMessages.length > 0;
         if (this.showJumpToLatest !== shouldShow) {
             this.showJumpToLatest = shouldShow;
         }
@@ -607,13 +994,12 @@ export class SttView extends LitElement {
         this.sttMessages = [];
         this._pendingTranslations.clear();
         this._translateQueue = [];
-        this._autoScrollEnabled = true;
+        this._activeTranslations = 0;
+        this._resetForceTranslateSessionState();
+        this._isNearBottom = true;
         this.showJumpToLatest = false;
         this.requestUpdate();
-        this.dispatchEvent(new CustomEvent('stt-messages-updated', {
-            detail: { messages: this.sttMessages },
-            bubbles: true
-        }));
+        this._emitMessagesUpdated();
     }
 
     toggleAutoTranslate() {
@@ -622,38 +1008,125 @@ export class SttView extends LitElement {
         this.requestUpdate();
     }
 
-    _triggerAutoTranslate(msg) {
+    toggleAutoScroll() {
+        this.autoScroll = !this.autoScroll;
+        try { localStorage.setItem('sttAutoScroll', String(this.autoScroll)); } catch {}
+        if (this.autoScroll) {
+            this.scrollToBottom();
+        } else {
+            this.requestUpdate();
+        }
+    }
+
+    handleForceTranslateSecondsChange(event) {
+        const value = Number(event?.target?.value || 0);
+        this.forceTranslateSeconds = Number.isFinite(value) && value >= 0 ? value : 0;
+        this._resetForceTranslateSessionState();
+
+        try {
+            localStorage.setItem('sttForceTranslateSeconds', String(this.forceTranslateSeconds));
+        } catch {}
+        this.requestUpdate();
+    }
+
+    toggleMicInput() {
+        this.micInputEnabled = !this.micInputEnabled;
+        try { localStorage.setItem('sttMicInputEnabled', String(this.micInputEnabled)); } catch {}
+        this._syncMicInputState();
+        this.requestUpdate();
+    }
+
+    _syncMicInputState() {
+        try {
+            window.pickleGlass?.setMicInputEnabled?.(this.micInputEnabled);
+        } catch (err) {
+            console.warn('[SttView] Failed to sync mic input state:', err);
+        }
+    }
+
+    _triggerAutoTranslate(msg, { contextBefore = '' } = {}) {
         if (!msg.text?.trim() || !window.api?.sttView?.translateText) return;
         if (this._pendingTranslations.has(msg.id)) return;
+
+        // Drop stale queued translations to prevent backlog during fast segmentation
+        if (this._translateQueue.length > 2) {
+            const dropped = this._translateQueue.splice(0, this._translateQueue.length - 2);
+            for (const stale of dropped) {
+                this._pendingTranslations.delete(stale.msgId);
+                this._updateMessageField(stale.msgId, 'isTranslating', false);
+                this._updateMessageField(stale.msgId, 'translateError', null);
+            }
+        }
 
         this._pendingTranslations.add(msg.id);
         this._updateMessageField(msg.id, 'isTranslating', true);
         this._updateMessageField(msg.id, 'translateError', null);
 
+        const task = {
+            msgId: msg.id,
+            text: msg.text,
+            contextBefore,
+        };
+
         if (this._activeTranslations < this._maxConcurrentTranslations) {
-            this._runTranslation(msg);
+            this._runTranslation(task);
         } else {
-            this._translateQueue.push(msg);
+            this._translateQueue.push(task);
         }
     }
 
-    async _runTranslation(msg) {
+    _handleStreamChunk(_event, { requestId, chunk }) {
+        const handler = this._streamChunkHandlers.get(requestId);
+        if (handler) handler(chunk);
+    }
+
+    async _runTranslation(task) {
         this._activeTranslations++;
+        const requestId = ++this._streamRequestId;
+        const useStreaming = !!window.api?.sttView?.translateStream;
+
         try {
-            const result = await window.api.sttView.translateText(msg.text, this.targetLanguage);
-            if (result?.success && result.translatedText) {
-                this._updateMessageField(msg.id, 'translatedText', result.translatedText);
+            if (useStreaming) {
+                let accumulated = '';
+                this._streamChunkHandlers.set(requestId, (chunk) => {
+                    accumulated += chunk;
+                    this._updateMessageField(task.msgId, 'translatedText', accumulated);
+                });
+
+                const streamPromise = window.api.sttView.translateStream(requestId, task.text, this.targetLanguage, task.contextBefore);
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Translation timeout')), 15_000)
+                );
+                const result = await Promise.race([streamPromise, timeoutPromise]);
+                this._streamChunkHandlers.delete(requestId);
+
+                if (result?.success && result.translatedText) {
+                    this._updateMessageField(task.msgId, 'translatedText', result.translatedText);
+                } else if (!accumulated) {
+                    this._updateMessageField(task.msgId, 'translateError', result?.error || 'Failed');
+                    setTimeout(() => this._updateMessageField(task.msgId, 'translateError', null), 3500);
+                }
             } else {
-                this._updateMessageField(msg.id, 'translateError', result?.error || 'Failed');
-                setTimeout(() => this._updateMessageField(msg.id, 'translateError', null), 3500);
+                const translationPromise = window.api.sttView.translateText(task.text, this.targetLanguage, task.contextBefore);
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Translation timeout')), 15_000)
+                );
+                const result = await Promise.race([translationPromise, timeoutPromise]);
+                if (result?.success && result.translatedText) {
+                    this._updateMessageField(task.msgId, 'translatedText', result.translatedText);
+                } else {
+                    this._updateMessageField(task.msgId, 'translateError', result?.error || 'Failed');
+                    setTimeout(() => this._updateMessageField(task.msgId, 'translateError', null), 3500);
+                }
             }
         } catch (err) {
+            this._streamChunkHandlers.delete(requestId);
             console.error('[SttView] Auto-translate failed:', err);
-            this._updateMessageField(msg.id, 'translateError', 'Translation failed');
-            setTimeout(() => this._updateMessageField(msg.id, 'translateError', null), 3500);
+            this._updateMessageField(task.msgId, 'translateError', 'Translation failed');
+            setTimeout(() => this._updateMessageField(task.msgId, 'translateError', null), 3500);
         } finally {
-            this._pendingTranslations.delete(msg.id);
-            this._updateMessageField(msg.id, 'isTranslating', false);
+            this._pendingTranslations.delete(task.msgId);
+            this._updateMessageField(task.msgId, 'isTranslating', false);
             this._activeTranslations--;
             if (this._translateQueue.length > 0) {
                 this._runTranslation(this._translateQueue.shift());
@@ -664,6 +1137,7 @@ export class SttView extends LitElement {
     _updateMessageField(msgId, field, value) {
         const idx = this.sttMessages.findIndex(m => m.id === msgId);
         if (idx === -1) return;
+        this._markShouldScrollAfterUpdate();
         const updated = [...this.sttMessages];
         updated[idx] = { ...updated[idx], [field]: value };
         this.sttMessages = updated;
@@ -793,6 +1267,22 @@ export class SttView extends LitElement {
         `;
     }
 
+    _forceSecondsOptions() {
+        return html`
+            <option value="0">Off</option>
+            <option value="3">3s</option>
+            <option value="5">5s</option>
+            <option value="7">7s</option>
+            <option value="10">10s</option>
+            <option value="13">13s</option>
+            <option value="15">15s</option>
+            <option value="17">17s</option>
+            <option value="20">20s</option>
+            <option value="25">25s</option>
+            <option value="30">30s</option>
+        `;
+    }
+
     render() {
         if (!this.isVisible) {
             return html`<div style="display: none;"></div>`;
@@ -824,13 +1314,34 @@ export class SttView extends LitElement {
                         <option value="meeting">Meeting</option>
                         <option value="custom">Custom...</option>
                     </select>
-                    <div class="auto-translate-toggle ${this.autoTranslate ? 'active' : ''}"
+                    <div class="toolbar-toggle ${this.autoScroll ? 'active' : ''}"
+                         title="Auto-scroll to the latest message when you're near the bottom"
+                         @click=${this.toggleAutoScroll}>
+                        <div class="toggle-track ${this.autoScroll ? 'active' : ''}">
+                            <div class="toggle-thumb"></div>
+                        </div>
+                        <span>Auto Scroll</span>
+                    </div>
+                    <div class="toolbar-toggle ${this.autoTranslate ? 'active' : ''}"
                          title="Automatically translate each finalized transcription segment"
                          @click=${this.toggleAutoTranslate}>
                         <div class="toggle-track ${this.autoTranslate ? 'active' : ''}">
                             <div class="toggle-thumb"></div>
                         </div>
                         <span>Auto Translate</span>
+                    </div>
+                    <select class="force-seconds-select" title="Live translate cadence for long speech (Off = final-only translation)"
+                            @change=${this.handleForceTranslateSecondsChange}
+                            .value=${String(this.forceTranslateSeconds)}>
+                        ${this._forceSecondsOptions()}
+                    </select>
+                    <div class="toolbar-toggle ${this.micInputEnabled ? 'active' : ''}"
+                         title="Enable or disable your microphone input for STT"
+                         @click=${this.toggleMicInput}>
+                        <div class="toggle-track ${this.micInputEnabled ? 'active' : ''}">
+                            <div class="toggle-thumb"></div>
+                        </div>
+                        <span>My Mic</span>
                     </div>
                     <button class="clear-btn" title="Clear transcript" @click=${this.clearHistory}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -864,6 +1375,9 @@ export class SttView extends LitElement {
                             <div class="message-text">${msg.text}</div>
                             ${msg.translatedText ? html`
                                 <div class="translated-text">${msg.translatedText}</div>
+                                ${msg.isTranslating && msg.isPartial ? html`
+                                    <div class="translating-dots"><span></span><span></span><span></span></div>
+                                ` : ''}
                             ` : msg.isTranslating ? html`
                                 <div class="translating-dots"><span></span><span></span><span></span></div>
                             ` : msg.translateError ? html`

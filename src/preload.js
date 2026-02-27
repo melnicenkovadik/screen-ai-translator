@@ -188,7 +188,10 @@ contextBridge.exposeInMainWorld('api', {
   // src/ui/listen/stt/SttView.js
   sttView: {
     // Translation
-    translateText: (text, targetLang) => ipcRenderer.invoke('translate:text', { text, targetLang }),
+    translateText: (text, targetLang, contextBefore) => ipcRenderer.invoke('translate:text', { text, targetLang, contextBefore }),
+    translateStream: (requestId, text, targetLang, contextBefore) => ipcRenderer.invoke('translate:stream', { requestId, text, targetLang, contextBefore }),
+    onTranslateStreamChunk: (callback) => ipcRenderer.on('translate:stream-chunk', callback),
+    removeOnTranslateStreamChunk: (callback) => ipcRenderer.removeListener('translate:stream-chunk', callback),
 
     // Listeners
     onSttUpdate: (callback) => ipcRenderer.on('stt-update', callback),

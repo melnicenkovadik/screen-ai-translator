@@ -11,6 +11,8 @@ window.pickleGlass = {
     isMacOS: listenCapture.isMacOS,
     captureManualScreenshot: listenCapture.captureManualScreenshot,
     getCurrentScreenshot: listenCapture.getCurrentScreenshot,
+    setMicInputEnabled: listenCapture.setMicInputEnabled,
+    getMicInputEnabled: listenCapture.getMicInputEnabled,
 };
 
 

@@ -45,6 +45,16 @@ let systemAudioProcessor = null;
 
 let systemAudioBuffer = [];
 const MAX_SYSTEM_BUFFER_SIZE = 10;
+let micInputEnabled = true;
+
+function setMicInputEnabled(enabled) {
+    micInputEnabled = enabled !== false;
+    return micInputEnabled;
+}
+
+function getMicInputEnabled() {
+    return micInputEnabled;
+}
 
 // ---------------------------
 // Utility helpers (exact from renderer.js)
@@ -328,10 +338,12 @@ async function setupMicProcessing(micStream) {
             const pcm16 = convertFloat32ToInt16(processedChunk);
             const b64 = arrayBufferToBase64(pcm16.buffer);
 
-            window.api.listenCapture.sendMicAudioContent({
-                data: b64,
-                mimeType: 'audio/pcm;rate=24000',
-            });
+            if (micInputEnabled) {
+                window.api.listenCapture.sendMicAudioContent({
+                    data: b64,
+                    mimeType: 'audio/pcm;rate=24000',
+                });
+            }
         }
     };
 
@@ -361,10 +373,12 @@ function setupLinuxMicProcessing(micStream) {
             const pcmData16 = convertFloat32ToInt16(chunk);
             const base64Data = arrayBufferToBase64(pcmData16.buffer);
 
-            await window.api.listenCapture.sendMicAudioContent({
-                data: base64Data,
-                mimeType: 'audio/pcm;rate=24000',
-            });
+            if (micInputEnabled) {
+                await window.api.listenCapture.sendMicAudioContent({
+                    data: base64Data,
+                    mimeType: 'audio/pcm;rate=24000',
+                });
+            }
         }
     };
 
@@ -621,6 +635,8 @@ module.exports = {
     stopCapture,
     isLinux,
     isMacOS,
+    setMicInputEnabled,
+    getMicInputEnabled,
 };
 
 // Expose functions to global scope for external access (exact from renderer.js)
@@ -629,4 +645,6 @@ if (typeof window !== 'undefined') {
     window.pickleGlass = window.pickleGlass || {};
     window.pickleGlass.startCapture = startCapture;
     window.pickleGlass.stopCapture = stopCapture;
+    window.pickleGlass.setMicInputEnabled = setMicInputEnabled;
+    window.pickleGlass.getMicInputEnabled = getMicInputEnabled;
 } 

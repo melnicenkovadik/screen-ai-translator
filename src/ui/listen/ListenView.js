@@ -32,6 +32,9 @@ export class ListenView extends LitElement {
 
         * {
             font-family: 'Helvetica Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .top-bar, .top-bar * {
             cursor: default;
             user-select: none;
         }
@@ -133,10 +136,17 @@ export class ListenView extends LitElement {
 
         stt-view,
         summary-view {
-            display: block;
+            display: flex;
+            flex-direction: column;
             flex: 1;
             min-height: 0;
             width: 100%;
+            overflow: hidden;
+        }
+
+        stt-view.hidden-view,
+        summary-view.hidden-view {
+            display: none !important;
         }
 
         .assistant-container::after {
@@ -362,70 +372,12 @@ export class ListenView extends LitElement {
         :host-context(body.has-glass) ::-webkit-scrollbar-track,
         :host-context(body.has-glass) ::-webkit-scrollbar-thumb {
             background: transparent !important;
-            width: 0 !important;      /* 스크롤바 자체 숨기기 */
-        }
-        :host-context(body.has-glass) .assistant-container,
-        :host-context(body.has-glass) .top-bar,
-        :host-context(body.has-glass) .toggle-button,
-        :host-context(body.has-glass) .copy-button,
-        :host-context(body.has-glass) .transcription-container,
-        :host-context(body.has-glass) .insights-container,
-        :host-context(body.has-glass) .stt-message,
-        :host-context(body.has-glass) .outline-item,
-        :host-context(body.has-glass) .request-item,
-        :host-context(body.has-glass) .markdown-content,
-        :host-context(body.has-glass) .insights-container pre,
-        :host-context(body.has-glass) .insights-container p code,
-        :host-context(body.has-glass) .insights-container pre code {
-            background: transparent !important;
-            border: none !important;
-            outline: none !important;
-            box-shadow: none !important;
-            filter: none !important;
-            backdrop-filter: none !important;
-        }
-
-        :host-context(body.has-glass) .assistant-container::before,
-        :host-context(body.has-glass) .assistant-container::after {
-            display: none !important;
-        }
-
-        :host-context(body.has-glass) .toggle-button:hover,
-        :host-context(body.has-glass) .copy-button:hover,
-        :host-context(body.has-glass) .outline-item:hover,
-        :host-context(body.has-glass) .request-item.clickable:hover,
-        :host-context(body.has-glass) .markdown-content:hover {
-            background: transparent !important;
-            transform: none !important;
-        }
-
-        :host-context(body.has-glass) .transcription-container::-webkit-scrollbar-track,
-        :host-context(body.has-glass) .transcription-container::-webkit-scrollbar-thumb,
-        :host-context(body.has-glass) .insights-container::-webkit-scrollbar-track,
-        :host-context(body.has-glass) .insights-container::-webkit-scrollbar-thumb {
-            background: transparent !important;
-        }
-        :host-context(body.has-glass) * {
-            animation: none !important;
-            transition: none !important;
-            transform: none !important;
-            filter: none !important;
-            backdrop-filter: none !important;
-            box-shadow: none !important;
-        }
-
-        :host-context(body.has-glass) .assistant-container,
-        :host-context(body.has-glass) .stt-message,
-        :host-context(body.has-glass) .toggle-button,
-        :host-context(body.has-glass) .copy-button {
-            border-radius: 0 !important;
-        }
-
-        :host-context(body.has-glass) ::-webkit-scrollbar,
-        :host-context(body.has-glass) ::-webkit-scrollbar-track,
-        :host-context(body.has-glass) ::-webkit-scrollbar-thumb {
-            background: transparent !important;
             width: 0 !important;
+        }
+
+        :host-context(body.has-glass) .transcription-container,
+        :host-context(body.has-glass) .insights-container {
+            overflow-y: auto !important;
         }
     `;
 
@@ -444,18 +396,14 @@ export class ListenView extends LitElement {
         super();
         this.isSessionActive = false;
         this.hasCompletedRecording = false;
-        this.viewMode = 'insights';
+        this.viewMode = 'transcript';
         this.isHovering = false;
         this.isAnimating = false;
         this.elapsedTime = '00:00';
         this.captureStartTime = null;
         this.timerInterval = null;
-        this.adjustHeightThrottle = null;
-        this.isThrottled = false;
         this.copyState = 'idle';
         this.copyTimeout = null;
-
-        this.adjustWindowHeight = this.adjustWindowHeight.bind(this);
     }
 
     connectedCallback() {
@@ -494,10 +442,6 @@ export class ListenView extends LitElement {
         super.disconnectedCallback();
         this.stopTimer();
 
-        if (this.adjustHeightThrottle) {
-            clearTimeout(this.adjustHeightThrottle);
-            this.adjustHeightThrottle = null;
-        }
         if (this.copyTimeout) {
             clearTimeout(this.copyTimeout);
         }
@@ -523,36 +467,6 @@ export class ListenView extends LitElement {
         }
     }
 
-    adjustWindowHeight() {
-        if (!window.api) return;
-
-        this.updateComplete
-            .then(() => {
-                const topBar = this.shadowRoot.querySelector('.top-bar');
-                const activeContent = this.viewMode === 'transcript'
-                    ? this.shadowRoot.querySelector('stt-view')
-                    : this.shadowRoot.querySelector('summary-view');
-
-                if (!topBar || !activeContent) return;
-
-                const topBarHeight = topBar.offsetHeight;
-
-                const contentHeight = activeContent.scrollHeight;
-
-                const idealHeight = topBarHeight + contentHeight;
-
-                const targetHeight = Math.min(700, idealHeight);
-
-                console.log(
-                    `[Height Adjusted] Mode: ${this.viewMode}, TopBar: ${topBarHeight}px, Content: ${contentHeight}px, Ideal: ${idealHeight}px, Target: ${targetHeight}px`
-                );
-
-                window.api.listenView.adjustWindowHeight('listen', targetHeight);
-            })
-            .catch(error => {
-                console.error('Error in adjustWindowHeight:', error);
-            });
-    }
 
     toggleViewMode() {
         this.viewMode = this.viewMode === 'insights' ? 'transcript' : 'insights';
@@ -602,36 +516,8 @@ export class ListenView extends LitElement {
         }
     }
 
-    adjustWindowHeightThrottled() {
-        if (this.isThrottled) {
-            return;
-        }
-
-        this.adjustWindowHeight();
-
-        this.isThrottled = true;
-
-        this.adjustHeightThrottle = setTimeout(() => {
-            this.isThrottled = false;
-        }, 16);
-    }
-
-    updated(changedProperties) {
-        super.updated(changedProperties);
-
-        if (changedProperties.has('viewMode')) {
-            this.adjustWindowHeight();
-        }
-    }
-
     handleSttMessagesUpdated(event) {
-        // Handle messages update from SttView if needed
-        this.adjustWindowHeightThrottled();
-    }
-
-    firstUpdated() {
-        super.firstUpdated();
-        setTimeout(() => this.adjustWindowHeight(), 200);
+        // no-op: window height is fixed, CSS handles scrolling
     }
 
     render() {
@@ -684,12 +570,14 @@ export class ListenView extends LitElement {
                     </div>
                 </div>
 
-                <stt-view 
+                <stt-view
+                    class=${this.viewMode === 'transcript' ? '' : 'hidden-view'}
                     .isVisible=${this.viewMode === 'transcript'}
                     @stt-messages-updated=${this.handleSttMessagesUpdated}
                 ></stt-view>
 
-                <summary-view 
+                <summary-view
+                    class=${this.viewMode === 'insights' ? '' : 'hidden-view'}
                     .isVisible=${this.viewMode === 'insights'}
                     .hasCompletedRecording=${this.hasCompletedRecording}
                 ></summary-view>

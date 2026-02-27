@@ -62,7 +62,15 @@ module.exports = {
     ipcMain.handle('ask:closeAskWindow',  async () => await askService.closeAskWindow());
     
     // Translate
-    ipcMain.handle('translate:text', async (event, { text, targetLang }) => await translateService.translate(text, targetLang));
+    ipcMain.handle('translate:text', async (event, { text, targetLang, contextBefore }) => await translateService.translate(text, targetLang, contextBefore));
+    ipcMain.handle('translate:stream', async (event, { requestId, text, targetLang, contextBefore }) => {
+      const sender = event.sender;
+      return await translateService.translateStream(text, targetLang, contextBefore, (chunk) => {
+        if (!sender.isDestroyed()) {
+          sender.send('translate:stream-chunk', { requestId, chunk });
+        }
+      });
+    });
 
     // Listen
     ipcMain.handle('listen:sendMicAudio', async (event, { data, mimeType }) => await listenService.handleSendMicAudioContent(data, mimeType));
