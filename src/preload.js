@@ -115,8 +115,6 @@ contextBridge.exposeInMainWorld('api', {
     // Generic invoke (for dynamic channel names)
     // invoke: (channel, ...args) => ipcRenderer.invoke(channel, ...args),
     sendListenButtonClick: (listenButtonText) => ipcRenderer.invoke('listen:changeSession', listenButtonText),
-    getListenAutoStopMs: () => ipcRenderer.invoke('listen:get-auto-stop'),
-    setListenAutoStopMs: (ms) => ipcRenderer.invoke('listen:set-auto-stop', ms),
     sendAskButtonClick: () => ipcRenderer.invoke('ask:toggleAskButton'),
     sendToggleAllWindowsVisibility: () => ipcRenderer.invoke('shortcut:toggleAllWindowsVisibility'),
     
@@ -241,6 +239,8 @@ contextBridge.exposeInMainWorld('api', {
     setAutoUpdate: (isEnabled) => ipcRenderer.invoke('settings:set-auto-update', isEnabled),
     getContentProtectionStatus: () => ipcRenderer.invoke('get-content-protection-status'),
     toggleContentProtection: () => ipcRenderer.invoke('toggle-content-protection'),
+    getListenAutoStopMs: () => ipcRenderer.invoke('listen:get-auto-stop'),
+    setListenAutoStopMs: (ms) => ipcRenderer.invoke('listen:set-auto-stop', ms),
     getCurrentShortcuts: () => ipcRenderer.invoke('settings:getCurrentShortcuts'),
     openShortcutSettingsWindow: () => ipcRenderer.invoke('shortcut:openShortcutSettingsWindow'),
     

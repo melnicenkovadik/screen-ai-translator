@@ -151,6 +151,7 @@ const SidebarComponent = ({ isCollapsed, onToggle, onSearchClick }: SidebarProps
     const [isSettingsExpanded, setIsSettingsExpanded] = useState(pathname.startsWith('/settings'));
     const { user: userInfo, isLoading: authLoading } = useAuth();
     const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
+    const isFirebaseUser = Boolean(userInfo && userInfo.uid !== 'default_user');
 
     const { isAnimating, getTextAnimationStyle, getSubmenuAnimationStyle, sidebarContainerStyle, getTextContainerStyle, getUniformTextStyle } =
         useAnimationStyles(isCollapsed);
@@ -455,6 +456,7 @@ const SidebarComponent = ({ isCollapsed, onToggle, onSearchClick }: SidebarProps
             getTextContainerStyle,
             getSubmenuAnimationStyle,
             settingsSubmenu,
+            isFirebaseUser,
         ]
     );
 
@@ -468,15 +470,12 @@ const SidebarComponent = ({ isCollapsed, onToggle, onSearchClick }: SidebarProps
         return userInfo?.display_name ? userInfo.display_name.charAt(0).toUpperCase() : 'G';
     }, [userInfo, authLoading]);
 
-    const isFirebaseUser = userInfo && userInfo.uid !== 'default_user';
-
     return (
         <aside
             className={`flex h-full flex-col bg-white border-r py-3 px-2 border-[#e5e5e5] relative ${isCollapsed ? 'w-[60px]' : 'w-[220px]'}`}
             style={sidebarContainerStyle}
             role="navigation"
             aria-label="main navigation"
-            aria-expanded={!isCollapsed}
         >
             <header className={`group relative h-6 flex shrink-0 items-center justify-between`}>
                 {isCollapsed ? (

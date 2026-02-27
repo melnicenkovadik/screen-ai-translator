@@ -53,7 +53,8 @@ export class SttView extends LitElement {
 
         .transcription-container {
             overflow-y: auto;
-            padding: 8px 12px 16px 12px;
+            padding: 8px 12px 24px 12px;
+            scroll-padding-bottom: 24px;
             display: flex;
             flex-direction: column;
             gap: 4px;
@@ -61,6 +62,32 @@ export class SttView extends LitElement {
             position: relative;
             z-index: 1;
             flex: 1;
+        }
+
+        .jump-to-latest {
+            position: sticky;
+            bottom: 8px;
+            margin-left: auto;
+            margin-top: 6px;
+            z-index: 3;
+            align-self: flex-end;
+            background: rgba(0, 122, 255, 0.92);
+            color: #fff;
+            border: none;
+            outline: none;
+            border-radius: 999px;
+            padding: 6px 10px;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+            transition: transform 0.15s ease, background-color 0.15s ease, opacity 0.15s ease;
+            opacity: 0.95;
+        }
+
+        .jump-to-latest:hover {
+            background: rgba(0, 122, 255, 1);
+            transform: translateY(-1px);
         }
 
         .transcription-container::-webkit-scrollbar {
@@ -342,6 +369,7 @@ export class SttView extends LitElement {
         autoTranslate: { type: Boolean },
         contextMode: { type: String },
         customContext: { type: String },
+        showJumpToLatest: { type: Boolean },
     };
 
     constructor() {
@@ -350,6 +378,8 @@ export class SttView extends LitElement {
         this.isVisible = true;
         this.messageIdCounter = 0;
         this._shouldScrollAfterUpdate = false;
+        this._autoScrollEnabled = true;
+        this._containerEl = null;
 
         this.handleSttUpdate = this.handleSttUpdate.bind(this);
         this.copyMessageText = this.copyMessageText.bind(this);
@@ -357,16 +387,20 @@ export class SttView extends LitElement {
         this.handleLanguageChange = this.handleLanguageChange.bind(this);
         this.handleSourceLanguageChange = this.handleSourceLanguageChange.bind(this);
         this.clearHistory = this.clearHistory.bind(this);
+        this.scrollToBottom = this.scrollToBottom.bind(this);
+        this._onContainerScroll = this._onContainerScroll.bind(this);
 
         this.targetLanguage = 'ru';
         this.sourceLanguage = 'auto';
         this.autoTranslate = false;
         this.contextMode = 'none';
         this.customContext = '';
+        this.showJumpToLatest = false;
         this._pendingTranslations = new Set();
         this._translateQueue = [];
         this._activeTranslations = 0;
         this._maxConcurrentTranslations = 3;
+        this._jumpVisibilityRaf = null;
     }
 
     connectedCallback() {
@@ -395,10 +429,17 @@ export class SttView extends LitElement {
                 }
             } catch {}
         }, 0);
+
+        this.updateComplete.then(() => this._attachContainerScrollListener());
     }
 
     disconnectedCallback() {
         super.disconnectedCallback();
+        if (this._jumpVisibilityRaf) {
+            cancelAnimationFrame(this._jumpVisibilityRaf);
+            this._jumpVisibilityRaf = null;
+        }
+        this._detachContainerScrollListener();
         if (window.api) {
             window.api.sttView.removeOnSttUpdate(this.handleSttUpdate);
         }
@@ -413,9 +454,7 @@ export class SttView extends LitElement {
         if (text === undefined) return;
 
         const container = this.shadowRoot.querySelector('.transcription-container');
-        this._shouldScrollAfterUpdate = container
-            ? container.scrollTop + container.clientHeight >= container.scrollHeight - 30
-            : true;
+        this._shouldScrollAfterUpdate = container ? this._autoScrollEnabled : true;
 
         const findLastPartialIdx = spk => {
             for (let i = this.sttMessages.length - 1; i >= 0; i--) {
@@ -484,8 +523,35 @@ export class SttView extends LitElement {
             const container = this.shadowRoot.querySelector('.transcription-container');
             if (container) {
                 container.scrollTop = container.scrollHeight;
+                this._autoScrollEnabled = true;
+                this.showJumpToLatest = false;
             }
         });
+    }
+
+    _attachContainerScrollListener() {
+        const container = this.shadowRoot?.querySelector('.transcription-container');
+        if (!container || this._containerEl === container) return;
+        this._detachContainerScrollListener();
+        this._containerEl = container;
+        container.addEventListener('scroll', this._onContainerScroll, { passive: true });
+    }
+
+    _detachContainerScrollListener() {
+        if (!this._containerEl) return;
+        this._containerEl.removeEventListener('scroll', this._onContainerScroll);
+        this._containerEl = null;
+    }
+
+    _onContainerScroll() {
+        const container = this._containerEl;
+        if (!container) return;
+        const distanceFromBottom = container.scrollHeight - (container.scrollTop + container.clientHeight);
+        this._autoScrollEnabled = distanceFromBottom <= 8;
+        const shouldShow = !this._autoScrollEnabled && this.sttMessages.length > 0;
+        if (this.showJumpToLatest !== shouldShow) {
+            this.showJumpToLatest = shouldShow;
+        }
     }
 
     getSpeakerClass(speaker) {
@@ -541,6 +607,8 @@ export class SttView extends LitElement {
         this.sttMessages = [];
         this._pendingTranslations.clear();
         this._translateQueue = [];
+        this._autoScrollEnabled = true;
+        this.showJumpToLatest = false;
         this.requestUpdate();
         this.dispatchEvent(new CustomEvent('stt-messages-updated', {
             detail: { messages: this.sttMessages },
@@ -669,12 +737,18 @@ export class SttView extends LitElement {
 
     updated(changedProperties) {
         super.updated(changedProperties);
+        this._attachContainerScrollListener();
 
         if (changedProperties.has('sttMessages')) {
             if (this._shouldScrollAfterUpdate) {
                 this.scrollToBottom();
                 this._shouldScrollAfterUpdate = false;
             }
+            if (this._jumpVisibilityRaf) cancelAnimationFrame(this._jumpVisibilityRaf);
+            this._jumpVisibilityRaf = requestAnimationFrame(() => {
+                this._jumpVisibilityRaf = null;
+                this._onContainerScroll();
+            });
         }
     }
 
@@ -818,6 +892,11 @@ export class SttView extends LitElement {
                         </div>
                     `)
                 }
+                ${this.showJumpToLatest ? html`
+                    <button class="jump-to-latest" @click=${this.scrollToBottom} title="Jump to latest message">
+                        Jump to latest
+                    </button>
+                ` : ''}
             </div>
         `;
     }

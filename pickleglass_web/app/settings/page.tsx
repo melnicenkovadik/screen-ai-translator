@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Check, ExternalLink, Cloud, HardDrive } from 'lucide-react'
+import { useState, useEffect, ChangeEvent } from 'react'
+import { Check, ExternalLink, Cloud, HardDrive, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '@/utils/auth'
 import { 
   UserProfile,
@@ -17,6 +17,7 @@ import { useRouter } from 'next/navigation'
 declare global {
   interface Window {
     ipcRenderer?: any;
+    api?: any;
   }
 }
 
@@ -31,8 +32,19 @@ export default function SettingsPage() {
   const [hasApiKey, setHasApiKey] = useState(false)
   const [apiKeyInput, setApiKeyInput] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const [listenAutoStopMs, setListenAutoStopMs] = useState(45 * 60 * 1000)
+  const [isSavingAutoStop, setIsSavingAutoStop] = useState(false)
+  const [showApiKey, setShowApiKey] = useState(false)
   const [displayNameInput, setDisplayNameInput] = useState('')
   const router = useRouter()
+  const autoStopOptions = [
+    { value: 0, label: 'Off' },
+    { value: 15 * 60 * 1000, label: '15 minutes' },
+    { value: 30 * 60 * 1000, label: '30 minutes' },
+    { value: 45 * 60 * 1000, label: '45 minutes' },
+    { value: 60 * 60 * 1000, label: '1 hour' },
+    { value: 3 * 60 * 60 * 1000, label: '3 hours' },
+  ]
 
   const fetchApiKeyStatus = async () => {
       try {
@@ -52,6 +64,12 @@ export default function SettingsPage() {
         setProfile(userProfile)
         setDisplayNameInput(userProfile.display_name)
         await fetchApiKeyStatus();
+        if (window.api?.settingsView?.getListenAutoStopMs) {
+          const autoStopResult = await window.api.settingsView.getListenAutoStopMs()
+          if (autoStopResult?.success && Number.isFinite(Number(autoStopResult.autoStopMs))) {
+            setListenAutoStopMs(Number(autoStopResult.autoStopMs))
+          }
+        }
       } catch (error) {
         console.error("Failed to fetch profile data:", error)
       }
@@ -145,6 +163,25 @@ export default function SettingsPage() {
       await logout()
     } catch (error) {
       console.error("Logout failed:", error)
+    }
+  }
+
+  const handleAutoStopChange = async (event: ChangeEvent<HTMLSelectElement>) => {
+    const nextValue = Number(event.target.value)
+    if (!window.api?.settingsView?.setListenAutoStopMs || !Number.isFinite(nextValue)) return
+    const previousValue = listenAutoStopMs
+    setListenAutoStopMs(nextValue)
+    setIsSavingAutoStop(true)
+    try {
+      const result = await window.api.settingsView.setListenAutoStopMs(nextValue)
+      if (!result?.success) {
+        setListenAutoStopMs(previousValue)
+      }
+    } catch (error) {
+      console.error('Failed to update auto stop setting:', error)
+      setListenAutoStopMs(previousValue)
+    } finally {
+      setIsSavingAutoStop(false)
     }
   }
 
@@ -415,15 +452,23 @@ export default function SettingsPage() {
                   <label htmlFor="api-key" className="block text-sm font-medium text-gray-700 mb-1">
                     API Key
                   </label>
-                  <div className="flex gap-2">
+                  <div className="relative flex-1">
                     <input
-                      type="password"
+                      type={showApiKey ? 'text' : 'password'}
                       id="api-key"
                       value={apiKeyInput}
                       onChange={(e) => setApiKeyInput(e.target.value)}
-                      className="flex-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-black"
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-black pr-10"
                       placeholder="Enter new API key or existing API key"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowApiKey(prev => !prev)}
+                      className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500 hover:text-gray-700"
+                      aria-label={showApiKey ? 'Hide API key' : 'Show API key'}
+                    >
+                      {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
                   </div>
                   {hasApiKey ? (
                     <p className="text-xs text-green-600 mt-2">API key is currently set.</p>
@@ -440,6 +485,33 @@ export default function SettingsPage() {
                     >
                       {isSaving ? 'Saving...' : 'Save'}
                     </button>
+                </div>
+              </div>
+            )}
+
+            {!isFirebaseMode && (
+              <div className="bg-white border border-gray-200 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">Listen Auto Stop</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Automatically stop an active Listen session after a fixed duration.
+                </p>
+                <div className="max-w-sm">
+                  <label htmlFor="listen-auto-stop" className="block text-sm font-medium text-gray-700 mb-1">
+                    Auto stop after
+                  </label>
+                  <select
+                    id="listen-auto-stop"
+                    value={String(listenAutoStopMs)}
+                    onChange={handleAutoStopChange}
+                    disabled={isSavingAutoStop}
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-black disabled:opacity-60"
+                  >
+                    {autoStopOptions.map(option => (
+                      <option key={option.value} value={String(option.value)}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
             )}
