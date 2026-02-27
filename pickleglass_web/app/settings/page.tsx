@@ -381,7 +381,7 @@ export default function SettingsPage() {
 
             <div className="bg-white border border-gray-200 rounded-lg p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-1">Display Name</h3>
-              <p className="text-sm text-gray-600 mb-4">Enter your full name or a display name you're comfortable using.</p>
+              <p className="text-sm text-gray-600 mb-4">Enter your full name or a display name you&apos;re comfortable using.</p>
               <div className="max-w-sm">
                  <input
                     type="text"

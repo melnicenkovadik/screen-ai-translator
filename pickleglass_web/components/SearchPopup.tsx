@@ -140,7 +140,7 @@ export default function SearchPopup({ isOpen, onClose }: SearchPopupProps) {
             ) : (
               <div className="p-6 text-center">
                 <Search className="h-8 w-8 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500 text-sm">No results found for "{searchQuery}"</p>
+                <p className="text-gray-500 text-sm">No results found for &quot;{searchQuery}&quot;</p>
               </div>
             )}
           </div>

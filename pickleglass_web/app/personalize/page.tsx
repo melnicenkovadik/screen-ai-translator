@@ -256,7 +256,7 @@ export default function PersonalizePage() {
                 <div className="w-4 h-4 bg-yellow-400 rounded-full"></div>
                 <p className="text-sm text-yellow-800">
                   <strong>This is a default preset and cannot be edited.</strong> 
-                  Use the "Duplicate" button above to create an editable copy, or create a new preset.
+                  Use the &quot;Duplicate&quot; button above to create an editable copy, or create a new preset.
                 </p>
               </div>
             </div>

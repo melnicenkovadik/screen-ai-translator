@@ -1,0 +1,29 @@
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "entry": [
+    "build.js",
+    "notarize.js",
+    "src/index.js",
+    "src/preload.js",
+    "pickleglass_web/next.config.js",
+    "pickleglass_web/app/**/*.tsx"
+  ],
+  "project": [
+    "src/**/*.js",
+    "pickleglass_web/**/*.{js,ts,tsx}"
+  ],
+  "ignore": [
+    "dist/**",
+    "public/assets/**",
+    "src/ui/assets/**"
+  ],
+  "ignoreDependencies": [
+    "@electron/fuses",
+    "@electron/notarize",
+    "electron-reloader",
+    "prettier"
+  ],
+  "ignoreBinaries": [
+    "electron-forge"
+  ]
+}
