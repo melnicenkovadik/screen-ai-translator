@@ -130,15 +130,19 @@ class HeaderTransitionManager {
         const isConfigured = await window.api.apiKeyHeader.areProvidersConfigured();
 
         if (isConfigured) {
-            // If providers are configured, always check permissions regardless of login state.
             const permissionResult = await this.checkPermissions();
             if (permissionResult.success) {
                 this.transitionToMainHeader();
             } else {
-                this.transitionToPermissionHeader();
+                const wasSkipped = await window.api.headerController.checkPermissionsCompleted?.();
+                if (wasSkipped) {
+                    console.log('[HeaderController] Permissions were previously skipped, proceeding to main');
+                    this.transitionToMainHeader();
+                } else {
+                    this.transitionToPermissionHeader();
+                }
             }
         } else {
-            // If no providers are configured, show the welcome header to prompt for setup.
             await this._resizeForWelcome();
             this.ensureHeader('welcome');
         }

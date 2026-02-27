@@ -112,7 +112,8 @@ const LATEST_SCHEMA = {
     permissions: {
         columns: [
             { name: 'uid', type: 'TEXT PRIMARY KEY' },
-            { name: 'keychain_completed', type: 'INTEGER DEFAULT 0' }
+            { name: 'keychain_completed', type: 'INTEGER DEFAULT 0' },
+            { name: 'permissions_skipped', type: 'INTEGER DEFAULT 0' }
         ]
     }
 };

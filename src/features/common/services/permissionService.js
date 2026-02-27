@@ -84,8 +84,9 @@ class PermissionService {
         } catch (captureError) {
           console.log('[Permissions] Screen capture request triggered (expected to fail):', captureError.message);
         }
-        
-        // await shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture');
+        await shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture');
+      } else if (section === 'microphone') {
+        await shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone');
       }
       return { success: true };
     } catch (error) {
@@ -115,6 +116,28 @@ class PermissionService {
       return completed;
     } catch (error) {
       console.error('[Permissions] Error checking keychain completed status:', error);
+      return false;
+    }
+  }
+
+  async markPermissionsCompleted() {
+    try {
+      const uid = this._getAuthService().getCurrentUserId();
+      await permissionRepository.markPermissionsCompleted(uid);
+      console.log('[Permissions] Marked permissions as completed (skipped)');
+      return { success: true };
+    } catch (error) {
+      console.error('[Permissions] Error marking permissions completed:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async checkPermissionsCompleted() {
+    try {
+      const uid = this._getAuthService().getCurrentUserId();
+      return permissionRepository.checkPermissionsCompleted(uid);
+    } catch (error) {
+      console.error('[Permissions] Error checking permissions completed:', error);
       return false;
     }
   }

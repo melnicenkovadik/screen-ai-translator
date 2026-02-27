@@ -133,7 +133,8 @@ contextBridge.exposeInMainWorld('api', {
     openSystemPreferences: (preference) => ipcRenderer.invoke('open-system-preferences', preference),
     markKeychainCompleted: () => ipcRenderer.invoke('mark-keychain-completed'),
     checkKeychainCompleted: (uid) => ipcRenderer.invoke('check-keychain-completed', uid),
-    initializeEncryptionKey: () => ipcRenderer.invoke('initialize-encryption-key') // New for keychain
+    initializeEncryptionKey: () => ipcRenderer.invoke('initialize-encryption-key'),
+    markPermissionsCompleted: () => ipcRenderer.invoke('mark-permissions-completed'),
   },
 
   // src/ui/app/PickleGlassApp.js

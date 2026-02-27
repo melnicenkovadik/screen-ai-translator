@@ -235,6 +235,22 @@ export class PermissionHeader extends LitElement {
             background: rgba(255, 255, 255, 0.2);
             cursor: not-allowed;
         }
+
+        .skip-link {
+            -webkit-app-region: no-drag;
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.45);
+            font-size: 10px;
+            cursor: pointer;
+            margin-top: 6px;
+            transition: color 0.15s ease;
+            text-decoration: underline;
+        }
+
+        .skip-link:hover {
+            color: rgba(255, 255, 255, 0.7);
+        }
         
         /* ────────────────[ GLASS BYPASS ]─────────────── */
         :host-context(body.has-glass) .container,
@@ -422,8 +438,7 @@ export class PermissionHeader extends LitElement {
             }
             
             // Check permissions again after a delay
-            // (This may not execute if app restarts after permission grant)
-            // setTimeout(() => this.checkPermissions(), 2000);
+            setTimeout(() => this.checkPermissions(), 2000);
         } catch (error) {
             console.error('[PermissionHeader] Error opening screen recording preferences:', error);
         }
@@ -466,6 +481,19 @@ export class PermissionHeader extends LitElement {
             }
             
             this.continueCallback();
+        }
+    }
+
+    async handleSkipPermissions() {
+        if (!window.api) return;
+        try {
+            await window.api.permissionHeader.markPermissionsCompleted();
+            console.log('[PermissionHeader] Permissions skipped by user');
+            if (this.continueCallback) {
+                this.continueCallback();
+            }
+        } catch (error) {
+            console.error('[PermissionHeader] Error skipping permissions:', error);
         }
     }
 
@@ -569,6 +597,9 @@ export class PermissionHeader extends LitElement {
                                 Stores the key to encrypt your data. Press "<b>Always Allow</b>" to continue.
                             </div>
                         ` : ''}
+                        <button class="skip-link" @click=${this.handleSkipPermissions}>
+                            Skip for now
+                        </button>
                     ` : html`
                         <button 
                             class="continue-button" 

@@ -397,6 +397,34 @@ export class SettingsView extends LitElement {
             width: 100%; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.2);
             color: white; border-radius: 4px; padding: 5px 8px; font-size: 11px; box-sizing: border-box;
         }
+        .key-input-row {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .key-input-row input {
+            margin: 0;
+            flex: 1;
+        }
+        .key-icon-button {
+            width: 28px;
+            height: 26px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: rgba(255,255,255,0.9);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 10px;
+            transition: background 0.15s ease;
+            padding: 0;
+            flex-shrink: 0;
+        }
+        .key-icon-button:hover {
+            background: rgba(255,255,255,0.15);
+        }
         .key-buttons { display: flex; gap: 4px; }
         .key-buttons .settings-button { flex: 1; padding: 4px; }
         .model-list {
@@ -595,6 +623,9 @@ export class SettingsView extends LitElement {
         this.presets = [];
         this.selectedPreset = null;
         this.showPresets = false;
+        this.keyVisibility = {};
+        this.keyCopiedProvider = null;
+        this.keyCopiedTimer = null;
         // Ollama related
         this.ollamaStatus = { installed: false, running: false };
         this.ollamaModels = [];
@@ -781,8 +812,31 @@ export class SettingsView extends LitElement {
         this.saving = true;
         await window.api.settingsView.removeApiKey(provider);
         this.apiKeys = { ...this.apiKeys, [provider]: '' };
+        this.keyVisibility = { ...this.keyVisibility, [provider]: false };
         await this.refreshModelData();
         this.saving = false;
+    }
+
+    toggleKeyVisibility(provider) {
+        const current = !!this.keyVisibility[provider];
+        this.keyVisibility = { ...this.keyVisibility, [provider]: !current };
+    }
+
+    async copyProviderKey(provider) {
+        const keyValue = this.apiKeys?.[provider] || '';
+        if (!keyValue) return;
+        try {
+            await navigator.clipboard.writeText(keyValue);
+            this.keyCopiedProvider = provider;
+            this.requestUpdate();
+            if (this.keyCopiedTimer) clearTimeout(this.keyCopiedTimer);
+            this.keyCopiedTimer = setTimeout(() => {
+                this.keyCopiedProvider = null;
+                this.requestUpdate();
+            }, 1200);
+        } catch (err) {
+            console.error('Failed to copy API key:', err);
+        }
     }
 
     async refreshModelData() {
@@ -1012,6 +1066,10 @@ export class SettingsView extends LitElement {
         this.cleanupEventListeners();
         this.cleanupIpcListeners();
         this.cleanupWindowResize();
+        if (this.keyCopiedTimer) {
+            clearTimeout(this.keyCopiedTimer);
+            this.keyCopiedTimer = null;
+        }
         
         // Cancel any ongoing Ollama installations when component is destroyed
         const installingModels = Object.keys(this.installingModels);
@@ -1284,10 +1342,20 @@ export class SettingsView extends LitElement {
                         return html`
                         <div class="provider-key-group">
                             <label for="key-input-${id}">${config.name} API Key</label>
-                            <input type="password" id="key-input-${id}"
-                                placeholder=${`Enter ${config.name} API Key`} 
-                                .value=${this.apiKeys[id] || ''}
-                            >
+                            <div class="key-input-row">
+                                <input type=${this.keyVisibility[id] ? 'text' : 'password'} id="key-input-${id}"
+                                    placeholder=${`Enter ${config.name} API Key`} 
+                                    .value=${this.apiKeys[id] || ''}
+                                >
+                                <button class="key-icon-button" title=${this.keyVisibility[id] ? 'Hide key' : 'Show key'}
+                                    @click=${() => this.toggleKeyVisibility(id)}>
+                                    ${this.keyVisibility[id] ? '🙈' : '👁'}
+                                </button>
+                                <button class="key-icon-button" title="Copy key"
+                                    @click=${() => this.copyProviderKey(id)}>
+                                    ${this.keyCopiedProvider === id ? '✓' : '⧉'}
+                                </button>
+                            </div>
                             <div class="key-buttons">
                                <button class="settings-button" @click=${() => this.handleSaveKey(id)}>Save</button>
                                <button class="settings-button danger" @click=${() => this.handleClearKey(id)}>Clear</button>
