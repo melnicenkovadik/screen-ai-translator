@@ -817,9 +817,9 @@ export class SettingsView extends LitElement {
         this.requestUpdate();
     }
     
-    async selectModel(type, modelId) {
+    async selectModel(type, modelId, providerOverride) {
         // Check if this is an Ollama model that needs to be installed
-        const provider = this.getProviderForModel(type, modelId);
+        const provider = providerOverride || this.getProviderForModel(type, modelId);
         if (provider === 'ollama') {
             const ollamaModel = this.ollamaModels.find(m => m.name === modelId);
             if (ollamaModel && !ollamaModel.installed && !ollamaModel.installing) {
@@ -841,7 +841,7 @@ export class SettingsView extends LitElement {
         }
         
         this.saving = true;
-        await window.api.settingsView.setSelectedModel({ type, modelId });
+        await window.api.settingsView.setSelectedModel({ type, modelId, provider: provider });
         if (type === 'llm') this.selectedLlm = modelId;
         if (type === 'stt') this.selectedStt = modelId;
         this.saving = false;
@@ -864,7 +864,7 @@ export class SettingsView extends LitElement {
     handleModelDropdownChange(providerId, type, event) {
         const modelId = event?.target?.value;
         if (!modelId) return;
-        this.selectModel(type, modelId);
+        this.selectModel(type, modelId, providerId);
     }
     
     async refreshOllamaStatus() {
@@ -1343,7 +1343,7 @@ export class SettingsView extends LitElement {
             <div class="settings-container">
                 <div class="header-section">
                     <div>
-                        <h1 class="app-title">Pickle Glass</h1>
+                        <h1 class="app-title">Smart AI Translator</h1>
                         <div class="account-info">Local Mode</div>
                     </div>
                     <div class="invisibility-icon ${this.isContentProtectionOn ? 'visible' : ''}" title="Invisibility is On">

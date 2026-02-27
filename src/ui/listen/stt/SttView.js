@@ -6,6 +6,8 @@ export class SttView extends LitElement {
             display: flex;
             flex-direction: column;
             width: 100%;
+            height: 100%;
+            min-height: 0;
         }
 
         .toolbar {
@@ -55,8 +57,7 @@ export class SttView extends LitElement {
             display: flex;
             flex-direction: column;
             gap: 4px;
-            min-height: 150px;
-            max-height: 600px;
+            min-height: 0;
             position: relative;
             z-index: 1;
             flex: 1;
@@ -363,6 +364,9 @@ export class SttView extends LitElement {
         this.contextMode = 'none';
         this.customContext = '';
         this._pendingTranslations = new Set();
+        this._translateQueue = [];
+        this._activeTranslations = 0;
+        this._maxConcurrentTranslations = 3;
     }
 
     connectedCallback() {
@@ -536,6 +540,7 @@ export class SttView extends LitElement {
     clearHistory() {
         this.sttMessages = [];
         this._pendingTranslations.clear();
+        this._translateQueue = [];
         this.requestUpdate();
         this.dispatchEvent(new CustomEvent('stt-messages-updated', {
             detail: { messages: this.sttMessages },
@@ -549,13 +554,23 @@ export class SttView extends LitElement {
         this.requestUpdate();
     }
 
-    async _triggerAutoTranslate(msg) {
+    _triggerAutoTranslate(msg) {
         if (!msg.text?.trim() || !window.api?.sttView?.translateText) return;
+        if (this._pendingTranslations.has(msg.id)) return;
 
         this._pendingTranslations.add(msg.id);
         this._updateMessageField(msg.id, 'isTranslating', true);
         this._updateMessageField(msg.id, 'translateError', null);
 
+        if (this._activeTranslations < this._maxConcurrentTranslations) {
+            this._runTranslation(msg);
+        } else {
+            this._translateQueue.push(msg);
+        }
+    }
+
+    async _runTranslation(msg) {
+        this._activeTranslations++;
         try {
             const result = await window.api.sttView.translateText(msg.text, this.targetLanguage);
             if (result?.success && result.translatedText) {
@@ -571,6 +586,10 @@ export class SttView extends LitElement {
         } finally {
             this._pendingTranslations.delete(msg.id);
             this._updateMessageField(msg.id, 'isTranslating', false);
+            this._activeTranslations--;
+            if (this._translateQueue.length > 0) {
+                this._runTranslation(this._translateQueue.shift());
+            }
         }
     }
 
@@ -637,7 +656,7 @@ export class SttView extends LitElement {
         const prompt = `${modeContext ? modeContext + '\n\n' : ''}Based on this conversation:\n\n${context}\n\nAnswer this question concisely and professionally: "${msg.text.trim()}"\n\nAfter the answer, add a separator line "---" and provide a full translation of your answer into ${langName}.`;
 
         try {
-            await window.api.askView.sendMessage(prompt);
+            await window.api.askView.sendMessage(prompt, { skipScreenshot: true });
         } catch (err) {
             console.error('[SttView] Failed to send answer request:', err);
         }

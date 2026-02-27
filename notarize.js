@@ -23,7 +23,7 @@ module.exports = async function notarizeApp(context) {
   }
 
   const options = {
-    appBundleId: 'com.pickle.glass',
+    appBundleId: 'com.smart.ai.translator',
     appPath,
     tool: 'notarytool',
   };

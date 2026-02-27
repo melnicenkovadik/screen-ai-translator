@@ -39,9 +39,6 @@ let isShuttingDown = false; // Flag to prevent infinite shutdown loop
 global.modelStateService = modelStateService;
 //////// after_modelStateService ////////
 
-// Import and initialize OllamaService
-const ollamaService = require('./features/common/services/ollamaService');
-const ollamaModelRepository = require('./features/common/repositories/ollamaModel');
 
 // Native deep link handling - cross-platform compatible
 let pendingDeepLinkUrl = null;
@@ -203,19 +200,6 @@ app.whenReady().then(async () => {
         windowBridge.initialize();
         setupWebDataHandlers();
 
-        // Initialize Ollama models in database
-        await ollamaModelRepository.initializeDefaultModels();
-
-        // Auto warm-up selected Ollama model in background (non-blocking)
-        setTimeout(async () => {
-            try {
-                console.log('[index.js] Starting background Ollama model warm-up...');
-                await ollamaService.autoWarmUpSelectedModel();
-            } catch (error) {
-                console.log('[index.js] Background warm-up failed (non-critical):', error.message);
-            }
-        }, 2000); // Wait 2 seconds after app start
-
         // Start web server and create windows ONLY after all initializations are successful
         WEB_PORT = await startWebStack();
         console.log('Web front-end listening on', WEB_PORT);
@@ -269,26 +253,7 @@ app.on('before-quit', async (event) => {
             console.warn('[Shutdown] Could not end active sessions (database may be closed):', dbError.message);
         }
         
-        // 3. Shutdown Ollama service (potentially time-consuming)
-        console.log('[Shutdown] shutting down Ollama service...');
-        const ollamaShutdownSuccess = await Promise.race([
-            ollamaService.shutdown(false), // Graceful shutdown
-            new Promise(resolve => setTimeout(() => resolve(false), 8000)) // 8s timeout
-        ]);
-        
-        if (ollamaShutdownSuccess) {
-            console.log('[Shutdown] Ollama service shut down gracefully');
-        } else {
-            console.log('[Shutdown] Ollama shutdown timeout, forcing...');
-            // Force shutdown if graceful failed
-            try {
-                await ollamaService.shutdown(true);
-            } catch (forceShutdownError) {
-                console.warn('[Shutdown] Force shutdown also failed:', forceShutdownError.message);
-            }
-        }
-        
-        // 4. Close database connections (final cleanup)
+        // 3. Close database connections (final cleanup)
         try {
             databaseInitializer.close();
             console.log('[Shutdown] Database connections closed');

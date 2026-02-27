@@ -115,6 +115,8 @@ contextBridge.exposeInMainWorld('api', {
     // Generic invoke (for dynamic channel names)
     // invoke: (channel, ...args) => ipcRenderer.invoke(channel, ...args),
     sendListenButtonClick: (listenButtonText) => ipcRenderer.invoke('listen:changeSession', listenButtonText),
+    getListenAutoStopMs: () => ipcRenderer.invoke('listen:get-auto-stop'),
+    setListenAutoStopMs: (ms) => ipcRenderer.invoke('listen:set-auto-stop', ms),
     sendAskButtonClick: () => ipcRenderer.invoke('ask:toggleAskButton'),
     sendToggleAllWindowsVisibility: () => ipcRenderer.invoke('shortcut:toggleAllWindowsVisibility'),
     
@@ -151,7 +153,7 @@ contextBridge.exposeInMainWorld('api', {
     adjustWindowHeight: (winName, height) => ipcRenderer.invoke('adjust-window-height', { winName, height }),
     
     // Message Handling
-    sendMessage: (text) => ipcRenderer.invoke('ask:sendQuestionFromAsk', text),
+    sendMessage: (text, options) => ipcRenderer.invoke('ask:sendQuestionFromAsk', text, options),
 
     // Listeners
     onAskStateUpdate: (callback) => ipcRenderer.on('ask:stateUpdate', callback),

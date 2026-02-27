@@ -215,7 +215,7 @@ class AskService {
      * @param {string} userPrompt
      * @returns {Promise<{success: boolean, response?: string, error?: string}>}
      */
-    async sendMessage(userPrompt, conversationHistoryRaw=[]) {
+    async sendMessage(userPrompt, conversationHistoryRaw=[], { skipScreenshot = false } = {}) {
         internalBridge.emit('window:requestVisibility', { name: 'ask', visible: true });
         this.state = {
             ...this.state,
@@ -249,8 +249,11 @@ class AskService {
             }
             console.log(`[AskService] Using model: ${modelInfo.model} for provider: ${modelInfo.provider}`);
 
-            const screenshotResult = await captureScreenshot({ quality: 'medium' });
-            const screenshotBase64 = screenshotResult.success ? screenshotResult.base64 : null;
+            let screenshotBase64 = null;
+            if (!skipScreenshot) {
+                const screenshotResult = await captureScreenshot({ quality: 'medium' });
+                screenshotBase64 = screenshotResult.success ? screenshotResult.base64 : null;
+            }
 
             const conversationHistory = this._formatConversationForPrompt(conversationHistoryRaw);
 

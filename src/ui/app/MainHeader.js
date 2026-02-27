@@ -5,6 +5,7 @@ export class MainHeader extends LitElement {
         isTogglingSession: { type: Boolean, state: true },
         shortcuts: { type: Object, state: true },
         listenSessionStatus: { type: String, state: true },
+        autoStopMs: { type: Number, state: true },
     };
 
     static styles = css`
@@ -289,6 +290,44 @@ export class MainHeader extends LitElement {
             width: 16px;
             height: 16px;
         }
+
+        .auto-stop-container {
+            -webkit-app-region: no-drag;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0 8px;
+            height: 26px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .auto-stop-label {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.01em;
+            white-space: nowrap;
+        }
+
+        .auto-stop-select {
+            -webkit-app-region: no-drag;
+            cursor: pointer;
+            height: 20px;
+            border-radius: 5px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.2);
+            color: white;
+            font-size: 11px;
+            padding: 0 18px 0 6px;
+            outline: none;
+        }
+
+        .auto-stop-select:disabled {
+            opacity: 0.6;
+            cursor: default;
+        }
         /* ────────────────[ GLASS BYPASS ]─────────────── */
         :host-context(body.has-glass) .header,
         :host-context(body.has-glass) .listen-button,
@@ -349,6 +388,7 @@ export class MainHeader extends LitElement {
         this.settingsHideTimer = null;
         this.isTogglingSession = false;
         this.listenSessionStatus = 'beforeSession';
+        this.autoStopMs = 45 * 60 * 1000;
         this.animationEndTimer = null;
         this.handleAnimationEnd = this.handleAnimationEnd.bind(this);
         this.handleMouseMove = this.handleMouseMove.bind(this);
@@ -472,6 +512,7 @@ export class MainHeader extends LitElement {
         this.addEventListener('animationend', this.handleAnimationEnd);
 
         if (window.api) {
+            this._loadAutoStopSetting();
 
             this._sessionStateTextListener = (event, { success }) => {
                 if (success) {
@@ -574,6 +615,45 @@ export class MainHeader extends LitElement {
         }
     }
 
+    _getAutoStopOptions() {
+        return [
+            { value: 0, label: 'Off' },
+            { value: 15 * 60 * 1000, label: '15m' },
+            { value: 30 * 60 * 1000, label: '30m' },
+            { value: 45 * 60 * 1000, label: '45m' },
+            { value: 60 * 60 * 1000, label: '1h' },
+            { value: 3 * 60 * 60 * 1000, label: '3h' },
+        ];
+    }
+
+    async _loadAutoStopSetting() {
+        if (!window.api?.mainHeader?.getListenAutoStopMs) return;
+        try {
+            const result = await window.api.mainHeader.getListenAutoStopMs();
+            if (result?.success && Number.isFinite(Number(result.autoStopMs))) {
+                this.autoStopMs = Number(result.autoStopMs);
+            }
+        } catch (error) {
+            console.warn('[MainHeader] Failed to load auto-stop setting:', error);
+        }
+    }
+
+    async _handleAutoStopChange(event) {
+        const nextValue = Number(event.target.value);
+        if (!Number.isFinite(nextValue) || !window.api?.mainHeader?.setListenAutoStopMs) return;
+        const previousValue = this.autoStopMs;
+        this.autoStopMs = nextValue;
+        try {
+            const result = await window.api.mainHeader.setListenAutoStopMs(nextValue);
+            if (!result?.success) {
+                this.autoStopMs = previousValue;
+            }
+        } catch (error) {
+            console.warn('[MainHeader] Failed to update auto-stop setting:', error);
+            this.autoStopMs = previousValue;
+        }
+    }
+
 
     renderShortcut(accelerator) {
         if (!accelerator) return html``;
@@ -658,6 +738,19 @@ export class MainHeader extends LitElement {
                     <div class="icon-container">
                         ${this.renderShortcut(this.shortcuts.toggleVisibility)}
                     </div>
+                </div>
+
+                <div class="auto-stop-container" title="Automatically stop Listen session">
+                    <div class="auto-stop-label">Auto Stop</div>
+                    <select
+                        class="auto-stop-select"
+                        .value=${String(this.autoStopMs)}
+                        @change=${this._handleAutoStopChange}
+                    >
+                        ${this._getAutoStopOptions().map(({ value, label }) => html`
+                            <option value=${String(value)}>${label}</option>
+                        `)}
+                    </select>
                 </div>
 
                 <button 

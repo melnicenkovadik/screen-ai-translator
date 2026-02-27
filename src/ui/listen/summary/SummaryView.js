@@ -5,6 +5,8 @@ export class SummaryView extends LitElement {
         :host {
             display: block;
             width: 100%;
+            height: 100%;
+            min-height: 0;
         }
 
         /* Inherit font styles from parent */
@@ -81,9 +83,10 @@ export class SummaryView extends LitElement {
             padding: 12px 16px 16px 16px;
             position: relative;
             z-index: 1;
-            min-height: 150px;
-            max-height: 600px;
+            min-height: 0;
             flex: 1;
+            height: 100%;
+            box-sizing: border-box;
         }
 
         /* Visibility handled by parent component */

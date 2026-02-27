@@ -7,6 +7,8 @@ export class ListenView extends LitElement {
         :host {
             display: block;
             width: 400px;
+            height: 100%;
+            min-height: 0;
             transform: translate3d(0, 0, 0);
             backface-visibility: hidden;
             transition: transform 0.2s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.2s ease-out;
@@ -126,6 +128,15 @@ export class ListenView extends LitElement {
             border-radius: 12px;
             width: 100%;
             height: 100%;
+            min-height: 0;
+        }
+
+        stt-view,
+        summary-view {
+            display: block;
+            flex: 1;
+            min-height: 0;
+            width: 100%;
         }
 
         .assistant-container::after {
@@ -627,10 +638,10 @@ export class ListenView extends LitElement {
         const displayText = this.isHovering
             ? this.viewMode === 'transcript'
                 ? 'Copy Transcript'
-                : 'Copy Glass Analysis'
+                : 'Copy Smart AI Translator Analysis'
             : this.viewMode === 'insights'
             ? `Live insights`
-            : `Glass is Listening ${this.elapsedTime}`;
+            : `Smart AI Translator is Listening ${this.elapsedTime}`;
 
         return html`
             <div class="assistant-container">

@@ -21,6 +21,7 @@ export class AskView extends LitElement {
             display: block;
             width: 100%;
             height: 100%;
+            min-height: 0;
             color: white;
             transform: translate3d(0, 0, 0);
             backface-visibility: hidden;
@@ -176,6 +177,7 @@ export class AskView extends LitElement {
             flex-direction: column;
             height: 100%;
             width: 100%;
+            min-height: 0;
             background: rgba(0, 0, 0, 0.6);
             border-radius: 12px;
             outline: 0.5px rgba(255, 255, 255, 0.3) solid;
@@ -369,7 +371,7 @@ export class AskView extends LitElement {
             line-height: 1.6;
             background: transparent;
             min-height: 0;
-            max-height: 400px;
+            max-height: none;
             position: relative;
         }
 

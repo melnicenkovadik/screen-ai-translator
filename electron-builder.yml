@@ -1,10 +1,10 @@
 # electron-builder.yml
 
 # The unique application ID
-appId: com.pickle.glass
+appId: com.smart.ai.translator
 
 # The user-facing application name
-productName: Glass
+productName: Smart AI Translator
 
 # Publish configuration for GitHub releases
 publish:
@@ -18,7 +18,7 @@ afterSign: ./notarize.js
 
 # Protocols configuration for deep linking
 protocols:
-    name: PickleGlass Protocol
+    name: Smart AI Translator Protocol
     schemes: 
         - pickleglass
 
@@ -50,10 +50,10 @@ win:
           arch: x64
     requestedExecutionLevel: asInvoker
     signAndEditExecutable: true
-    cscLink: build\certs\glass-dev.pfx
+    cscLink: build\certs\smart-ai-translator-dev.pfx
     cscKeyPassword: "${env.CSC_KEY_PASSWORD}"
     signtoolOptions:
-      certificateSubjectName: "Glass Dev Code Signing"
+      certificateSubjectName: "Smart AI Translator Dev Code Signing"
 
 # NSIS installer configuration for Windows
 nsis:
@@ -63,7 +63,7 @@ nsis:
     deleteAppDataOnUninstall: true
     createDesktopShortcut: always
     createStartMenuShortcut: true
-    shortcutName: Glass
+    shortcutName: Smart AI Translator
 
 # macOS specific configuration
 mac:

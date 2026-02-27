@@ -5,14 +5,18 @@ const authService = require('../common/services/authService');
 const sessionRepository = require('../common/repositories/session');
 const sttRepository = require('./stt/repositories');
 const internalBridge = require('../../bridge/internalBridge');
+const settingsService = require('../settings/settingsService');
 
 class ListenService {
     constructor() {
+        this.AUTO_STOP_OPTIONS_MS = new Set([0, 15 * 60 * 1000, 30 * 60 * 1000, 45 * 60 * 1000, 60 * 60 * 1000, 3 * 60 * 60 * 1000]);
         this.sttService = new SttService();
         this.summaryService = new SummaryService();
         this.currentSessionId = null;
         this.isInitializingSession = false;
         this.sttSourceLanguage = 'auto';
+        this.autoStopMs = 45 * 60 * 1000;
+        this.autoStopTimer = null;
 
         this.setupServiceCallbacks();
         console.log('[ListenService] Service instance created.');
@@ -51,7 +55,74 @@ class ListenService {
 
     initialize() {
         this.setupIpcHandlers();
+        this.loadAutoStopSetting();
         console.log('[ListenService] Initialized and ready.');
+    }
+
+    async loadAutoStopSetting() {
+        try {
+            const settings = await settingsService.getSettings();
+            const value = Number(settings?.listenAutoStopMs);
+            this.autoStopMs = this.AUTO_STOP_OPTIONS_MS.has(value) ? value : 45 * 60 * 1000;
+        } catch (error) {
+            console.warn('[ListenService] Failed to load auto-stop setting, using default 45m:', error.message);
+            this.autoStopMs = 45 * 60 * 1000;
+        }
+    }
+
+    getAutoStopMs() {
+        return this.autoStopMs;
+    }
+
+    async setAutoStopMs(ms) {
+        const numeric = Number(ms);
+        if (!this.AUTO_STOP_OPTIONS_MS.has(numeric)) {
+            return { success: false, error: 'Unsupported auto-stop duration' };
+        }
+        this.autoStopMs = numeric;
+        await settingsService.saveSettings({ listenAutoStopMs: numeric });
+        if (this.isSessionActive()) {
+            this.scheduleAutoStopTimer();
+        }
+        return { success: true, autoStopMs: this.autoStopMs };
+    }
+
+    clearAutoStopTimer() {
+        if (this.autoStopTimer) {
+            clearTimeout(this.autoStopTimer);
+            this.autoStopTimer = null;
+        }
+    }
+
+    scheduleAutoStopTimer() {
+        this.clearAutoStopTimer();
+        if (!this.autoStopMs || this.autoStopMs <= 0) return;
+        this.autoStopTimer = setTimeout(async () => {
+            console.log(`[ListenService] Auto-stop triggered after ${this.autoStopMs}ms`);
+            await this.handleAutoStopTimeout();
+        }, this.autoStopMs);
+        console.log(`[ListenService] Auto-stop scheduled in ${this.autoStopMs}ms`);
+    }
+
+    async handleAutoStopTimeout() {
+        const { windowPool } = require('../../window/windowManager');
+        const listenWindow = windowPool?.get('listen');
+        const header = windowPool?.get('header');
+        try {
+            await this.closeSession();
+            if (listenWindow && !listenWindow.isDestroyed()) {
+                listenWindow.webContents.send('session-state-changed', { isActive: false, reason: 'auto-stop' });
+            }
+            if (header && !header.isDestroyed()) {
+                // Reuse same event to keep header state machine consistent (inSession -> afterSession)
+                header.webContents.send('listen:changeSessionResult', { success: true, reason: 'auto-stop' });
+            }
+        } catch (error) {
+            console.error('[ListenService] Auto-stop failed:', error);
+            if (header && !header.isDestroyed()) {
+                header.webContents.send('listen:changeSessionResult', { success: false, error: error.message });
+            }
+        }
     }
 
     async handleListenRequest(listenButtonText) {
@@ -64,10 +135,16 @@ class ListenService {
                 case 'Listen':
                     console.log('[ListenService] changeSession to "Listen"');
                     internalBridge.emit('window:requestVisibility', { name: 'listen', visible: true });
-                    await this.initializeSession(this.sttSourceLanguage || 'ru');
+                    {
+                        const initialized = await this.initializeSession(this.sttSourceLanguage || 'ru');
+                        if (!initialized) {
+                            throw new Error('Failed to initialize listening session');
+                        }
+                    }
                     if (listenWindow && !listenWindow.isDestroyed()) {
                         listenWindow.webContents.send('session-state-changed', { isActive: true });
                     }
+                    this.scheduleAutoStopTimer();
                     break;
         
                 case 'Stop':
@@ -82,6 +159,7 @@ class ListenService {
                     console.log('[ListenService] changeSession to "Done"');
                     internalBridge.emit('window:requestVisibility', { name: 'listen', visible: false });
                     listenWindow.webContents.send('session-state-changed', { isActive: false });
+                    this.clearAutoStopTimer();
                     break;
         
                 default:
@@ -231,6 +309,7 @@ class ListenService {
 
     async closeSession() {
         try {
+            this.clearAutoStopTimer();
             this.sendToRenderer('change-listen-capture-state', { status: "stop" });
             // Close STT sessions
             await this.sttService.closeSessions();

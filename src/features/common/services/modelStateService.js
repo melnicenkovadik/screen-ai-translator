@@ -9,7 +9,7 @@ class ModelStateService extends EventEmitter {
     constructor() {
         super();
         this.authService = authService;
-        this.store = new Store({ name: 'pickle-glass-model-state' });
+        this.store = new Store({ name: 'smart-ai-translator-model-state' });
     }
 
     async initialize() {
@@ -156,6 +156,10 @@ class ModelStateService extends EventEmitter {
 
         const existingSettings = await providerSettingsRepository.getByProvider(provider) || {};
         await providerSettingsRepository.upsert(provider, { ...existingSettings, api_key: key });
+
+        if (provider === 'openai') {
+            this._saveOpenAIDynamicModelCatalog(validationResult.modelIds || []);
+        }
         
         await this._autoSelectAvailableModels([]);
         
@@ -177,6 +181,9 @@ class ModelStateService extends EventEmitter {
         const setting = await providerSettingsRepository.getByProvider(provider);
         if (setting && setting.api_key) {
             await providerSettingsRepository.upsert(provider, { ...setting, api_key: null });
+            if (provider === 'openai') {
+                this._saveOpenAIDynamicModelCatalog([]);
+            }
             await this._autoSelectAvailableModels(['llm', 'stt']);
             this.emit('state-updated', await this.getLiveState());
             this.emit('settings-updated');
@@ -200,8 +207,9 @@ class ModelStateService extends EventEmitter {
             type = arg2;
         }
         if (!modelId || !type) return null;
-        for (const providerId in PROVIDERS) {
-            const models = type === 'llm' ? PROVIDERS[providerId].llmModels : PROVIDERS[providerId].sttModels;
+        const providerConfig = this.getProviderConfig();
+        for (const providerId in providerConfig) {
+            const models = type === 'llm' ? providerConfig[providerId].llmModels : providerConfig[providerId].sttModels;
             if (models && models.some(m => m.id === modelId)) {
                 return providerId;
             }
@@ -247,12 +255,13 @@ class ModelStateService extends EventEmitter {
         const allSettings = await providerSettingsRepository.getAll();
         const available = [];
         const modelListKey = type === 'llm' ? 'llmModels' : 'sttModels';
+        const providerConfig = this.getProviderConfig();
 
         for (const setting of allSettings) {
             if (!setting.api_key) continue;
             const providerId = setting.provider;
-            if (PROVIDERS[providerId]?.[modelListKey]) {
-                available.push(...PROVIDERS[providerId][modelListKey]);
+            if (providerConfig[providerId]?.[modelListKey]) {
+                available.push(...providerConfig[providerId][modelListKey]);
             }
         }
         return [...new Map(available.map(item => [item.id, item])).values()];
@@ -293,6 +302,7 @@ class ModelStateService extends EventEmitter {
             const { handler, ...rest } = PROVIDERS[key];
             config[key] = rest;
         }
+        config.openai = this._buildOpenAIConfig(config.openai);
         return config;
     }
     
@@ -330,6 +340,56 @@ class ModelStateService extends EventEmitter {
         return hasLlmKey && hasSttKey;
     }
 }
+
+ModelStateService.prototype._getDynamicModelCatalog = function () {
+    return this.store.get('dynamicModelCatalog', {});
+};
+
+ModelStateService.prototype._saveOpenAIDynamicModelCatalog = function (modelIds) {
+    const current = this._getDynamicModelCatalog();
+    current.openai = {
+        modelIds: Array.isArray(modelIds) ? modelIds : [],
+        fetchedAt: Date.now(),
+    };
+    this.store.set('dynamicModelCatalog', current);
+};
+
+ModelStateService.prototype._buildOpenAIConfig = function (baseOpenAIConfig) {
+    const dynamic = this._getDynamicModelCatalog().openai;
+    const modelIds = Array.isArray(dynamic?.modelIds) ? dynamic.modelIds : [];
+    if (modelIds.length === 0) return baseOpenAIConfig;
+
+    const staticLlmMap = new Map((baseOpenAIConfig.llmModels || []).map(m => [m.id, m]));
+    const staticSttMap = new Map((baseOpenAIConfig.sttModels || []).map(m => [m.id, m]));
+    const staticLlmOrder = (baseOpenAIConfig.llmModels || []).map(m => m.id);
+    const staticSttOrder = (baseOpenAIConfig.sttModels || []).map(m => m.id);
+
+    const isLikelyLlm = (id) =>
+        /^gpt-/i.test(id) &&
+        !/transcribe|audio|realtime|tts|embedding|vision/i.test(id);
+    const isLikelyStt = (id) => /transcribe/i.test(id) || id === 'whisper-1';
+
+    const llmIds = modelIds.filter(isLikelyLlm);
+    const sttIds = modelIds.filter(isLikelyStt);
+
+    const humanize = (id) => id.toUpperCase().replace(/-/g, '-');
+
+    const orderedLlm = [
+        ...staticLlmOrder.filter(id => llmIds.includes(id)),
+        ...llmIds.filter(id => !staticLlmMap.has(id)),
+    ].map(id => staticLlmMap.get(id) || { id, name: humanize(id) });
+
+    const orderedStt = [
+        ...staticSttOrder.filter(id => sttIds.includes(id)),
+        ...sttIds.filter(id => !staticSttMap.has(id)),
+    ].map(id => staticSttMap.get(id) || { id, name: humanize(id) });
+
+    return {
+        ...baseOpenAIConfig,
+        llmModels: orderedLlm.length > 0 ? orderedLlm : baseOpenAIConfig.llmModels,
+        sttModels: orderedStt.length > 0 ? orderedStt : baseOpenAIConfig.sttModels,
+    };
+};
 
 const modelStateService = new ModelStateService();
 module.exports = modelStateService;

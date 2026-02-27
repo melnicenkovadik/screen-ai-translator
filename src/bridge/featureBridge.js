@@ -54,7 +54,7 @@ module.exports = {
     ipcMain.handle('get-web-url', () => process.env.pickleglass_WEB_URL || 'http://localhost:3000');
 
     // Ask
-    ipcMain.handle('ask:sendQuestionFromAsk', async (event, userPrompt) => await askService.sendMessage(userPrompt));
+    ipcMain.handle('ask:sendQuestionFromAsk', async (event, userPrompt, options) => await askService.sendMessage(userPrompt, [], options));
     ipcMain.handle('ask:sendQuestionFromSummary', async (event, userPrompt) => await askService.sendMessage(userPrompt));
     ipcMain.handle('ask:toggleAskButton', async () => await askService.toggleAskButton());
     ipcMain.handle('ask:closeAskWindow',  async () => await askService.closeAskWindow());
@@ -77,6 +77,8 @@ module.exports = {
     ipcMain.handle('listen:isSessionActive', async () => await listenService.isSessionActive());
     ipcMain.handle('listen:getLanguage', async () => listenService.getSttLanguage());
     ipcMain.handle('listen:setLanguage', async (event, lang) => await listenService.setSttLanguage(lang));
+    ipcMain.handle('listen:get-auto-stop', async () => ({ success: true, autoStopMs: listenService.getAutoStopMs() }));
+    ipcMain.handle('listen:set-auto-stop', async (event, ms) => await listenService.setAutoStopMs(ms));
     ipcMain.handle('listen:changeSession', async (event, listenButtonText) => {
       console.log('[FeatureBridge] listen:changeSession from mainheader', listenButtonText);
       try {

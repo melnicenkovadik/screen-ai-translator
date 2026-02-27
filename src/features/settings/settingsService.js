@@ -7,7 +7,7 @@ const { getStoredApiKey, getStoredProvider, windowPool } = require('../../window
 const modelStateService = require('../common/services/modelStateService');
 
 const store = new Store({
-    name: 'pickle-glass-settings',
+    name: 'smart-ai-translator-settings',
     defaults: {
         users: {}
     }
@@ -196,7 +196,8 @@ function getDefaultSettings() {
         googleSearchEnabled: false,
         backgroundTransparency: 0.5,
         fontSize: 14,
-        contentProtection: true
+        contentProtection: true,
+        listenAutoStopMs: 45 * 60 * 1000,
     };
 }
 
