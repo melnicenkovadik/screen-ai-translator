@@ -122,7 +122,8 @@ contextBridge.exposeInMainWorld('api', {
     onListenChangeSessionResult: (callback) => ipcRenderer.on('listen:changeSessionResult', callback),
     removeOnListenChangeSessionResult: (callback) => ipcRenderer.removeListener('listen:changeSessionResult', callback),
     onShortcutsUpdated: (callback) => ipcRenderer.on('shortcuts-updated', callback),
-    removeOnShortcutsUpdated: (callback) => ipcRenderer.removeListener('shortcuts-updated', callback)
+    removeOnShortcutsUpdated: (callback) => ipcRenderer.removeListener('shortcuts-updated', callback),
+    sendQuestionsButtonClick: () => ipcRenderer.invoke('questions:toggle'),
   },
 
   // src/ui/app/PermissionHeader.js
@@ -193,6 +194,9 @@ contextBridge.exposeInMainWorld('api', {
     onTranslateStreamChunk: (callback) => ipcRenderer.on('translate:stream-chunk', callback),
     removeOnTranslateStreamChunk: (callback) => ipcRenderer.removeListener('translate:stream-chunk', callback),
 
+    // Summary language
+    setSummaryLanguage: (lang) => ipcRenderer.invoke('listen:setSummaryLanguage', lang),
+
     // Listeners
     onSttUpdate: (callback) => ipcRenderer.on('stt-update', callback),
     removeOnSttUpdate: (callback) => ipcRenderer.removeListener('stt-update', callback)
@@ -200,13 +204,28 @@ contextBridge.exposeInMainWorld('api', {
 
   // src/ui/listen/summary/SummaryView.js
   summaryView: {
-    // Message Handling
-    sendQuestionFromSummary: (text) => ipcRenderer.invoke('ask:sendQuestionFromSummary', text),
-    
+    // Streaming summary listeners
+    onSummaryStreamStart: (callback) => ipcRenderer.on('summary-stream-start', callback),
+    removeSummaryStreamStart: (callback) => ipcRenderer.removeListener('summary-stream-start', callback),
+    onSummaryStreamChunk: (callback) => ipcRenderer.on('summary-stream-chunk', callback),
+    removeSummaryStreamChunk: (callback) => ipcRenderer.removeListener('summary-stream-chunk', callback),
+    onSummaryStreamDone: (callback) => ipcRenderer.on('summary-stream-done', callback),
+    removeSummaryStreamDone: (callback) => ipcRenderer.removeListener('summary-stream-done', callback),
+  },
+
+  // src/ui/questions/QuestionsView.js
+  questionsView: {
+    toggle: () => ipcRenderer.invoke('questions:toggle'),
+    getState: () => ipcRenderer.invoke('questions:getState'),
+    refresh: () => ipcRenderer.invoke('questions:refresh'),
+    answer: (id) => ipcRenderer.invoke('questions:answer', id),
+    dismiss: (id) => ipcRenderer.invoke('questions:dismiss', id),
+    setContext: (mode, customContext) => ipcRenderer.invoke('questions:setContext', { mode, customContext }),
+    setAnswerLanguage: (lang) => ipcRenderer.invoke('questions:setAnswerLanguage', lang),
+
     // Listeners
-    onSummaryUpdate: (callback) => ipcRenderer.on('summary-update', callback),
-    removeOnSummaryUpdate: (callback) => ipcRenderer.removeListener('summary-update', callback),
-    removeAllSummaryUpdateListeners: () => ipcRenderer.removeAllListeners('summary-update')
+    onStateUpdate: (callback) => ipcRenderer.on('questions:stateUpdate', callback),
+    removeOnStateUpdate: (callback) => ipcRenderer.removeListener('questions:stateUpdate', callback),
   },
 
   // src/ui/settings/SettingsView.js

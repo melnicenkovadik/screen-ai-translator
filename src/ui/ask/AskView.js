@@ -14,6 +14,7 @@ export class AskView extends LitElement {
         headerText: { type: String },
         headerAnimating: { type: Boolean },
         isStreaming: { type: Boolean },
+        responseLanguage: { type: String },
     };
 
     static styles = css`
@@ -103,7 +104,7 @@ export class AskView extends LitElement {
         /* Allow text selection in assistant responses */
         .response-container, .response-container * {
             user-select: text !important;
-            cursor: text !important;
+            cursor: default !important;
         }
 
         .response-container pre {
@@ -301,7 +302,7 @@ export class AskView extends LitElement {
             border: 1px solid rgba(255, 255, 255, 0.2);
             padding: 4px;
             border-radius: 3px;
-            cursor: pointer;
+            cursor: default;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -349,7 +350,7 @@ export class AskView extends LitElement {
             outline: 1px rgba(255, 255, 255, 0.3) solid;
             outline-offset: -1px;
             backdrop-filter: blur(0.5px);
-            cursor: pointer;
+            cursor: default;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -459,7 +460,7 @@ export class AskView extends LitElement {
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 3px;
             padding: 2px;
-            cursor: pointer;
+            cursor: default;
             opacity: 0;
             transition: opacity 0.15s ease, background-color 0.15s ease;
             display: flex;
@@ -510,6 +511,18 @@ export class AskView extends LitElement {
 
         .text-input-container.no-response {
             border-top: none;
+        }
+
+        .lang-select {
+            background: rgba(255, 255, 255, 0.12);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            padding: 6px 4px;
+            font-size: 11px;
+            outline: none;
+            cursor: default;
+            flex-shrink: 0;
         }
 
         #textInput {
@@ -657,7 +670,7 @@ export class AskView extends LitElement {
             font-family: 'Helvetica Neue', sans-serif;
             font-weight: 500;
             overflow: hidden;
-            cursor: pointer;
+            cursor: default;
             transition: background 0.15s;
             height: 32px;
             padding: 0 10px;
@@ -692,7 +705,7 @@ export class AskView extends LitElement {
             display: flex;
             align-items: center;
             gap: 2px;
-            cursor: pointer;
+            cursor: default;
             padding: 0 2px;
         }
         .header-clear-btn .icon-box {
@@ -723,6 +736,7 @@ export class AskView extends LitElement {
         this.headerText = 'AI Response';
         this.headerAnimating = false;
         this.isStreaming = false;
+        this.responseLanguage = localStorage.getItem('askResponseLanguage') || 'en';
 
         this.marked = null;
         this.hljs = null;
@@ -1279,10 +1293,15 @@ export class AskView extends LitElement {
         textInput.value = '';
 
         if (window.api) {
-            window.api.askView.sendMessage(text).catch(error => {
+            window.api.askView.sendMessage(text, { responseLanguage: this.responseLanguage }).catch(error => {
                 console.error('Error sending text:', error);
             });
         }
+    }
+
+    handleResponseLanguageChange(e) {
+        this.responseLanguage = e.target.value;
+        localStorage.setItem('askResponseLanguage', this.responseLanguage);
     }
 
     handleTextKeydown(e) {
@@ -1384,6 +1403,23 @@ export class AskView extends LitElement {
 
                 <!-- Text Input Container -->
                 <div class="text-input-container ${!hasResponse ? 'no-response' : ''} ${!this.showTextInput ? 'hidden' : ''}">
+                    <select class="lang-select" @change=${this.handleResponseLanguageChange} .value=${this.responseLanguage}>
+                        <option value="en">EN</option>
+                        <option value="ru">RU</option>
+                        <option value="uk">UK</option>
+                        <option value="de">DE</option>
+                        <option value="fr">FR</option>
+                        <option value="es">ES</option>
+                        <option value="it">IT</option>
+                        <option value="pt">PT</option>
+                        <option value="zh">ZH</option>
+                        <option value="ja">JA</option>
+                        <option value="ko">KO</option>
+                        <option value="tr">TR</option>
+                        <option value="pl">PL</option>
+                        <option value="ar">AR</option>
+                        <option value="hi">HI</option>
+                    </select>
                     <input
                         type="text"
                         id="textInput"

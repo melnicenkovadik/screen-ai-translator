@@ -28,7 +28,7 @@ export class ShortcutSettingsView extends LitElement {
         .close-button{position:absolute;top:10px;right:10px;inline-size:14px;block-size:14px;
             background:rgba(255,255,255,.1);border:none;border-radius:3px;
             color:rgba(255,255,255,.7);display:grid;place-items:center;
-            font-size:14px;line-height:0;cursor:pointer;transition:.15s;z-index:10;}
+            font-size:14px;line-height:0;cursor: default;transition:.15s;z-index:10;}
         .close-button:hover{background:rgba(255,255,255,.2);color:rgba(255,255,255,.9);}
 
         .title{font-size:14px;font-weight:500;margin:0 0 8px;padding-bottom:8px;
@@ -42,13 +42,13 @@ export class ShortcutSettingsView extends LitElement {
             white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 
         .action-btn{background:none;border:none;color:rgba(0,122,255,.8);
-            font-size:11px;padding:0 4px;cursor:pointer;transition:.15s;}
+            font-size:11px;padding:0 4px;cursor: default;transition:.15s;}
         .action-btn:hover{color:#0a84ff;text-decoration:underline;}
 
         .shortcut-input{inline-size:120px;background:rgba(0,0,0,.2);
             border:1px solid rgba(255,255,255,.2);border-radius:4px;
             padding:4px 6px;font:11px 'SF Mono','Menlo',monospace;
-            color:white;text-align:right;cursor:text;margin-left:auto;}
+            color:white;text-align:right;cursor: default;margin-left:auto;}
         .shortcut-input:focus,.shortcut-input.capturing{
             outline:none;border-color:rgba(0,122,255,.6);
             box-shadow:0 0 0 1px rgba(0,122,255,.3);}
@@ -60,7 +60,7 @@ export class ShortcutSettingsView extends LitElement {
         .actions{display:flex;gap:4px;padding-top:8px;border-top:1px solid rgba(255,255,255,.1);}
         .settings-button{flex:1;background:rgba(255,255,255,.1);
             border:1px solid rgba(255,255,255,.2);border-radius:4px;
-            color:white;padding:5px 10px;font-size:11px;cursor:pointer;transition:.15s;}
+            color:white;padding:5px 10px;font-size:11px;cursor: default;transition:.15s;}
         .settings-button:hover{background:rgba(255,255,255,.15);}
         .settings-button.primary{background:rgba(0,122,255,.25);border-color:rgba(0,122,255,.6);}
         .settings-button.primary:hover{background:rgba(0,122,255,.35);}

@@ -215,7 +215,7 @@ class AskService {
      * @param {string} userPrompt
      * @returns {Promise<{success: boolean, response?: string, error?: string}>}
      */
-    async sendMessage(userPrompt, conversationHistoryRaw=[], { skipScreenshot = false } = {}) {
+    async sendMessage(userPrompt, conversationHistoryRaw=[], { skipScreenshot = false, responseLanguage = null } = {}) {
         internalBridge.emit('window:requestVisibility', { name: 'ask', visible: true });
         this.state = {
             ...this.state,
@@ -257,7 +257,13 @@ class AskService {
 
             const conversationHistory = this._formatConversationForPrompt(conversationHistoryRaw);
 
-            const systemPrompt = getSystemPrompt('pickle_glass_analysis', conversationHistory, false);
+            let systemPrompt = getSystemPrompt('pickle_glass_analysis', conversationHistory, false);
+
+            // Inject response language instruction
+            const LANG_MAP = { ru: 'Russian', en: 'English', uk: 'Ukrainian', de: 'German', fr: 'French', es: 'Spanish', it: 'Italian', pt: 'Portuguese', zh: 'Chinese', ja: 'Japanese', ko: 'Korean', tr: 'Turkish', pl: 'Polish', ar: 'Arabic', hi: 'Hindi' };
+            if (responseLanguage && LANG_MAP[responseLanguage]) {
+                systemPrompt += `\n\nIMPORTANT: You must respond in ${LANG_MAP[responseLanguage]}.`;
+            }
 
             const messages = [
                 { role: 'system', content: systemPrompt },

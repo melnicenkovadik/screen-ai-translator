@@ -10,6 +10,7 @@ const translateService = require('../features/translate/translateService');
 const listenService = require('../features/listen/listenService');
 const permissionService = require('../features/common/services/permissionService');
 const encryptionService = require('../features/common/services/encryptionService');
+const questionQueueService = require('../features/questions/questionQueueService');
 
 module.exports = {
   initialize() {
@@ -87,6 +88,7 @@ module.exports = {
     ipcMain.handle('listen:isSessionActive', async () => await listenService.isSessionActive());
     ipcMain.handle('listen:getLanguage', async () => listenService.getSttLanguage());
     ipcMain.handle('listen:setLanguage', async (event, lang) => await listenService.setSttLanguage(lang));
+    ipcMain.handle('listen:setSummaryLanguage', async (event, lang) => listenService.setSummaryLanguage(lang));
     ipcMain.handle('listen:get-auto-stop', async () => ({ success: true, autoStopMs: listenService.getAutoStopMs() }));
     ipcMain.handle('listen:set-auto-stop', async (event, ms) => await listenService.setAutoStopMs(ms));
     ipcMain.handle('listen:changeSession', async (event, listenButtonText) => {
@@ -99,6 +101,20 @@ module.exports = {
         return { success: false, error: error.message };
       }
     });
+
+    // Questions Queue
+    ipcMain.handle('questions:toggle', async () => {
+      const result = questionQueueService.toggle();
+      const internalBridge = require('./internalBridge');
+      internalBridge.emit('window:requestVisibility', { name: 'questions', visible: result.isActive });
+      return result;
+    });
+    ipcMain.handle('questions:getState', async () => questionQueueService.getState());
+    ipcMain.handle('questions:refresh', async () => await questionQueueService.refreshQueue());
+    ipcMain.handle('questions:answer', async (event, id) => await questionQueueService.answerQuestion(id));
+    ipcMain.handle('questions:dismiss', async (event, id) => questionQueueService.dismissQuestion(id));
+    ipcMain.handle('questions:setContext', async (event, { mode, customContext }) => questionQueueService.setContext(mode, customContext));
+    ipcMain.handle('questions:setAnswerLanguage', async (event, lang) => questionQueueService.setAnswerLanguage(lang));
 
     // ModelStateService
     ipcMain.handle('model:validate-key', async (e, { provider, key }) => await modelStateService.handleValidateKey(provider, key));

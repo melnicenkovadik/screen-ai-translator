@@ -94,6 +94,53 @@ class WindowLayoutManager {
     }
 
 
+    calculateQuestionsWindowPosition() {
+        const header = this.windowPool.get('header');
+        const questions = this.windowPool.get('questions');
+        if (!header || header.isDestroyed() || !questions || questions.isDestroyed()) {
+            return null;
+        }
+
+        const questionsBounds = questions.getBounds();
+        const display = getCurrentDisplay(header);
+        const { x: workAreaX, y: workAreaY, width: screenWidth, height: screenHeight } = display.workArea;
+        const PAD = 8;
+
+        // Find the leftmost visible feature window (listen or ask)
+        const listen = this.windowPool.get('listen');
+        const ask = this.windowPool.get('ask');
+        const listenVis = listen && !listen.isDestroyed() && listen.isVisible();
+        const askVis = ask && !ask.isDestroyed() && ask.isVisible();
+
+        let anchorBounds = null;
+        if (listenVis && askVis) {
+            const lb = listen.getBounds();
+            const ab = ask.getBounds();
+            anchorBounds = lb.x <= ab.x ? lb : ab;
+        } else if (listenVis) {
+            anchorBounds = listen.getBounds();
+        } else if (askVis) {
+            anchorBounds = ask.getBounds();
+        }
+
+        let x, y;
+        if (anchorBounds) {
+            // Dock to the left of the leftmost feature window, same top
+            x = anchorBounds.x - questionsBounds.width - PAD;
+            y = anchorBounds.y;
+        } else {
+            // Fallback: below header, centered
+            const headerBounds = header.getBounds();
+            x = headerBounds.x + (headerBounds.width / 2) - (questionsBounds.width / 2);
+            y = headerBounds.y + headerBounds.height + PAD;
+        }
+
+        const clampedX = Math.max(workAreaX + 4, Math.min(workAreaX + screenWidth - questionsBounds.width - 4, x));
+        const clampedY = Math.max(workAreaY + 4, Math.min(workAreaY + screenHeight - questionsBounds.height - 4, y));
+
+        return { x: Math.round(clampedX), y: Math.round(clampedY), width: questionsBounds.width, height: questionsBounds.height };
+    }
+
     calculateHeaderResize(header, { width, height }) {
         if (!header) return null;
         const currentBounds = header.getBounds();

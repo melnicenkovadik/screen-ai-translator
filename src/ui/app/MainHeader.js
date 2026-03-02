@@ -92,7 +92,7 @@ export class MainHeader extends LitElement {
             gap: 6px;
             display: flex;
             border: none;
-            cursor: pointer;
+            cursor: default;
             position: relative;
         }
 
@@ -268,7 +268,7 @@ export class MainHeader extends LitElement {
             transition: background 0.15s ease;
             color: white;
             border: none;
-            cursor: pointer;
+            cursor: default;
             display: flex;
             align-items: center;
             gap: 6px;
@@ -475,15 +475,16 @@ export class MainHeader extends LitElement {
         if (window.api) {
             this._sessionStateTextListener = (event, { success }) => {
                 if (success) {
-                    this.listenSessionStatus = ({
+                    const nextStatus = ({
                         beforeSession: 'inSession',
                         inSession: 'afterSession',
                         afterSession: 'beforeSession',
                     })[this.listenSessionStatus] || 'beforeSession';
+                    this.listenSessionStatus = nextStatus;
                 } else {
                     this.listenSessionStatus = 'beforeSession';
                 }
-                this.isTogglingSession = false; // ✨ 로딩 상태만 해제
+                this.isTogglingSession = false;
             };
             window.api.mainHeader.onListenChangeSessionResult(this._sessionStateTextListener);
 

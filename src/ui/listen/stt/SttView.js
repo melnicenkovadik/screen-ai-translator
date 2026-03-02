@@ -42,7 +42,7 @@ export class SttView extends LitElement {
             padding: 4px 6px;
             font-size: 11px;
             outline: none;
-            cursor: pointer;
+            cursor: default;
         }
 
         .lang-arrow {
@@ -56,11 +56,11 @@ export class SttView extends LitElement {
         .transcription-container {
             overflow-y: auto !important;
             overflow-x: hidden;
-            padding: 8px 12px 24px 12px;
-            scroll-padding-bottom: 24px;
+            padding: 4px 10px 20px 10px;
+            scroll-padding-bottom: 20px;
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 2px;
             min-height: 0;
             height: 100%;
             position: relative;
@@ -89,7 +89,7 @@ export class SttView extends LitElement {
             padding: 6px 10px;
             font-size: 11px;
             font-weight: 500;
-            cursor: pointer;
+            cursor: default;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
             transition: transform 0.15s ease, background-color 0.15s ease, opacity 0.15s ease;
             opacity: 0.95;
@@ -117,76 +117,40 @@ export class SttView extends LitElement {
 
         .speaker-label {
             font-size: 9px;
-            color: rgba(255, 255, 255, 0.45);
-            padding: 4px 4px 1px 4px;
+            color: rgba(255, 255, 255, 0.35);
+            padding: 3px 2px 0 2px;
             font-weight: 500;
             letter-spacing: 0.3px;
             text-transform: uppercase;
         }
 
-        .speaker-label.them {
-            align-self: flex-start;
-        }
-
-        .speaker-label.me {
-            align-self: flex-end;
-        }
-
         .stt-message {
-            padding: 8px 12px;
-            border-radius: 12px;
-            max-width: 80%;
+            padding: 3px 8px;
+            border-radius: 6px;
             word-wrap: break-word;
             word-break: break-word;
-            line-height: 1.5;
-            font-size: 13px;
-            margin-bottom: 2px;
+            line-height: 1.4;
+            font-size: 12px;
+            margin-bottom: 1px;
             box-sizing: border-box;
         }
 
         .message-text {
             white-space: pre-wrap;
             user-select: text !important;
-            cursor: text !important;
-        }
-
-        .message-actions {
-            display: flex;
-            gap: 6px;
-            margin-top: 6px;
-        }
-
-        .msg-button {
-            background: rgba(255, 255, 255, 0.12);
-            color: #fff;
-            border: none;
-            outline: none;
-            padding: 4px 8px;
-            border-radius: 6px;
+            cursor: default !important;
             font-size: 11px;
-            cursor: pointer;
-            transition: background-color 0.15s ease;
+            color: rgba(255, 255, 255, 0.4);
+            line-height: 1.3;
         }
 
-        .msg-button:hover {
-            background: rgba(255, 255, 255, 0.18);
+        .message-text.hidden-original {
+            display: none;
         }
 
-        .msg-button.answer {
-            background: rgba(0, 180, 100, 0.25);
-            color: rgba(180, 255, 210, 0.95);
-        }
-
-        .msg-button.answer:hover {
-            background: rgba(0, 180, 100, 0.35);
-        }
-
-        .stt-message.me .msg-button {
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        .stt-message.me .msg-button:hover {
-            background: rgba(255, 255, 255, 0.28);
+        .message-text.fallback-visible {
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 12px;
         }
 
         .clear-btn {
@@ -196,7 +160,7 @@ export class SttView extends LitElement {
             outline: none;
             padding: 4px;
             border-radius: 4px;
-            cursor: pointer;
+            cursor: default;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -209,19 +173,13 @@ export class SttView extends LitElement {
         }
 
         .stt-message.them {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.04);
             color: rgba(255, 255, 255, 0.9);
-            align-self: flex-start;
-            border-bottom-left-radius: 4px;
-            margin-right: auto;
         }
 
         .stt-message.me {
-            background: rgba(0, 122, 255, 0.8);
+            background: rgba(0, 122, 255, 0.10);
             color: white;
-            align-self: flex-end;
-            border-bottom-right-radius: 4px;
-            margin-left: auto;
         }
 
         .empty-state {
@@ -238,7 +196,7 @@ export class SttView extends LitElement {
             display: flex;
             align-items: center;
             gap: 5px;
-            cursor: pointer;
+            cursor: default;
             user-select: none;
             font-size: 10px;
             color: rgba(255, 255, 255, 0.7);
@@ -286,46 +244,34 @@ export class SttView extends LitElement {
         }
 
         .translated-text {
-            margin-top: 4px;
-            padding-top: 4px;
-            border-top: 1px solid rgba(255, 255, 255, 0.15);
-            font-size: 12px;
-            opacity: 0.8;
+            margin-top: 2px;
+            font-size: 14px;
+            color: #fff;
+            opacity: 1;
             white-space: pre-wrap;
-            font-style: italic;
-            animation: slideInTranslation 0.25s ease-out;
+            line-height: 1.4;
+            user-select: text !important;
+            cursor: default !important;
         }
 
-        @keyframes slideInTranslation {
-            from { opacity: 0; transform: translateY(-4px); }
-            to { opacity: 0.8; transform: translateY(0); }
-        }
-
-        .translating-dots {
-            display: flex;
-            align-items: center;
-            gap: 3px;
-            margin-top: 4px;
-            padding-top: 4px;
-        }
-
-        .translating-dots span {
-            width: 4px;
-            height: 4px;
-            background-color: rgba(255, 255, 255, 0.5);
+        .translating-dot {
+            display: inline-block;
+            width: 5px;
+            height: 5px;
+            background-color: rgba(255, 255, 255, 0.6);
             border-radius: 50%;
-            animation: pulse 1.4s infinite ease-in-out both;
+            margin-left: 4px;
+            vertical-align: middle;
+            animation: pulseDot 1.2s infinite ease-in-out;
         }
-        .translating-dots span:nth-of-type(1) { animation-delay: -0.32s; }
-        .translating-dots span:nth-of-type(2) { animation-delay: -0.16s; }
 
-        @keyframes pulse {
-            0%, 80%, 100% { opacity: 0.2; }
-            40% { opacity: 1.0; }
+        @keyframes pulseDot {
+            0%, 100% { opacity: 0.3; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.1); }
         }
 
         .translate-error {
-            margin-top: 4px;
+            margin-top: 2px;
             font-size: 10px;
             color: rgba(255, 100, 100, 0.8);
             animation: fadeOutError 3s ease-out forwards;
@@ -344,7 +290,7 @@ export class SttView extends LitElement {
             padding: 3px 6px;
             font-size: 10px;
             outline: none;
-            cursor: pointer;
+            cursor: default;
             max-width: 90px;
         }
 
@@ -356,7 +302,7 @@ export class SttView extends LitElement {
             padding: 3px 6px;
             font-size: 10px;
             outline: none;
-            cursor: pointer;
+            cursor: default;
             max-width: 60px;
         }
 
@@ -394,6 +340,7 @@ export class SttView extends LitElement {
         autoScroll: { type: Boolean },
         forceTranslateSeconds: { type: Number },
         micInputEnabled: { type: Boolean },
+        hideOriginal: { type: Boolean },
         contextMode: { type: String },
         customContext: { type: String },
         showJumpToLatest: { type: Boolean },
@@ -427,6 +374,7 @@ export class SttView extends LitElement {
         this.autoScroll = true;
         this.forceTranslateSeconds = 0;
         this.micInputEnabled = true;
+        this.hideOriginal = false;
         this.contextMode = 'none';
         this.customContext = '';
         this.showJumpToLatest = false;
@@ -453,7 +401,10 @@ export class SttView extends LitElement {
 
         try {
             const saved = localStorage.getItem('sttTargetLanguage');
-            if (saved) this.targetLanguage = saved;
+            if (saved) {
+                this.targetLanguage = saved;
+                window.api?.sttView?.setSummaryLanguage?.(saved);
+            }
             const savedAuto = localStorage.getItem('sttAutoTranslate');
             if (savedAuto !== null) this.autoTranslate = savedAuto === 'true';
             const savedAutoScroll = localStorage.getItem('sttAutoScroll');
@@ -464,6 +415,8 @@ export class SttView extends LitElement {
             }
             const savedMicInputEnabled = localStorage.getItem('sttMicInputEnabled');
             if (savedMicInputEnabled !== null) this.micInputEnabled = savedMicInputEnabled === 'true';
+            const savedHideOriginal = localStorage.getItem('sttHideOriginal');
+            if (savedHideOriginal !== null) this.hideOriginal = savedHideOriginal === 'true';
             const savedCtx = localStorage.getItem('sttContextMode');
             if (savedCtx) this.contextMode = savedCtx;
             const savedCustomCtx = localStorage.getItem('sttCustomContext');
@@ -973,6 +926,7 @@ export class SttView extends LitElement {
         const value = event?.target?.value || 'ru';
         this.targetLanguage = value;
         try { localStorage.setItem('sttTargetLanguage', value); } catch {}
+        window.api?.sttView?.setSummaryLanguage?.(value);
         this.requestUpdate();
     }
 
@@ -1033,6 +987,12 @@ export class SttView extends LitElement {
         this.micInputEnabled = !this.micInputEnabled;
         try { localStorage.setItem('sttMicInputEnabled', String(this.micInputEnabled)); } catch {}
         this._syncMicInputState();
+        this.requestUpdate();
+    }
+
+    toggleHideOriginal() {
+        this.hideOriginal = !this.hideOriginal;
+        try { localStorage.setItem('sttHideOriginal', String(this.hideOriginal)); } catch {}
         this.requestUpdate();
     }
 
@@ -1174,12 +1134,14 @@ export class SttView extends LitElement {
     handleContextChange(event) {
         this.contextMode = event?.target?.value || 'none';
         try { localStorage.setItem('sttContextMode', this.contextMode); } catch {}
+        window.api?.questionsView?.setContext?.(this.contextMode, this.customContext);
         this.requestUpdate();
     }
 
     handleCustomContextInput(event) {
         this.customContext = event?.target?.value || '';
         try { localStorage.setItem('sttCustomContext', this.customContext); } catch {}
+        window.api?.questionsView?.setContext?.(this.contextMode, this.customContext);
     }
 
     async answerQuestion(msg) {
@@ -1315,41 +1277,46 @@ export class SttView extends LitElement {
                         <option value="custom">Custom...</option>
                     </select>
                     <div class="toolbar-toggle ${this.autoScroll ? 'active' : ''}"
-                         title="Auto-scroll to the latest message when you're near the bottom"
+                         title="Auto-scroll to the latest message"
                          @click=${this.toggleAutoScroll}>
                         <div class="toggle-track ${this.autoScroll ? 'active' : ''}">
                             <div class="toggle-thumb"></div>
                         </div>
-                        <span>Auto Scroll</span>
+                        <span>Scroll</span>
                     </div>
                     <div class="toolbar-toggle ${this.autoTranslate ? 'active' : ''}"
-                         title="Automatically translate each finalized transcription segment"
+                         title="Automatically translate transcription"
                          @click=${this.toggleAutoTranslate}>
                         <div class="toggle-track ${this.autoTranslate ? 'active' : ''}">
                             <div class="toggle-thumb"></div>
                         </div>
-                        <span>Auto Translate</span>
+                        <span>Translate</span>
                     </div>
-                    <select class="force-seconds-select" title="Live translate cadence for long speech (Off = final-only translation)"
+                    <select class="force-seconds-select" title="Live translate cadence"
                             @change=${this.handleForceTranslateSecondsChange}
                             .value=${String(this.forceTranslateSeconds)}>
                         ${this._forceSecondsOptions()}
                     </select>
+                    <div class="toolbar-toggle ${this.hideOriginal ? 'active' : ''}"
+                         title="Hide original text, show only translation"
+                         @click=${() => this.toggleHideOriginal()}>
+                        <div class="toggle-track ${this.hideOriginal ? 'active' : ''}">
+                            <div class="toggle-thumb"></div>
+                        </div>
+                        <span>Hide Orig</span>
+                    </div>
                     <div class="toolbar-toggle ${this.micInputEnabled ? 'active' : ''}"
-                         title="Enable or disable your microphone input for STT"
+                         title="Enable or disable your microphone input"
                          @click=${this.toggleMicInput}>
                         <div class="toggle-track ${this.micInputEnabled ? 'active' : ''}">
                             <div class="toggle-thumb"></div>
                         </div>
-                        <span>My Mic</span>
+                        <span>Mic</span>
                     </div>
                     <button class="clear-btn" title="Clear transcript" @click=${this.clearHistory}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="3 6 5 6 21 6"/>
                             <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
-                            <path d="M10 11v6"/>
-                            <path d="M14 11v6"/>
-                            <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
                         </svg>
                     </button>
                 </div>
@@ -1365,49 +1332,31 @@ export class SttView extends LitElement {
             <div class="transcription-container">
                 ${this.sttMessages.length === 0
                     ? html`<div class="empty-state">Waiting for speech...</div>`
-                    : this.sttMessages.map((msg, idx) => html`
-                        ${this._isSpeakerChange(idx) ? html`
-                            <div class="speaker-label ${this.getSpeakerClass(msg.speaker)}">
-                                ${msg.speaker.toLowerCase() === 'me' ? 'You' : 'Speaker'}
-                            </div>
-                        ` : ''}
-                        <div class="stt-message ${this.getSpeakerClass(msg.speaker)}">
-                            <div class="message-text">${msg.text}</div>
-                            ${msg.translatedText ? html`
-                                <div class="translated-text">${msg.translatedText}</div>
-                                ${msg.isTranslating && msg.isPartial ? html`
-                                    <div class="translating-dots"><span></span><span></span><span></span></div>
-                                ` : ''}
-                            ` : msg.isTranslating ? html`
-                                <div class="translating-dots"><span></span><span></span><span></span></div>
-                            ` : msg.translateError ? html`
-                                <div class="translate-error">${msg.translateError}</div>
-                            ` : ''}
-                            ${msg.isFinal ? html`
-                                <div class="message-actions">
-                                    <button class="msg-button"
-                                        @click=${() => this.copyMessageText(msg)}>
-                                        ${this.copiedMessageId === msg.id ? 'Copied' : 'Copy'}
-                                    </button>
-                                    ${!this.autoTranslate && !msg.translatedText && !msg.isTranslating ? html`
-                                        <button class="msg-button"
-                                            @click=${() => this.translateMessage(msg)}>
-                                            Translate
-                                        </button>
-                                    ` : ''}
-                                    ${this.getSpeakerClass(msg.speaker) === 'them' && this._isQuestion(msg.text) ? html`
-                                        <button class="msg-button answer"
-                                            @click=${() => this.answerQuestion(msg)}>
-                                            Answer
-                                        </button>
-                                    ` : ''}
+                    : this.sttMessages.map((msg, idx) => {
+                        const hasTranslation = !!msg.translatedText;
+                        const shouldHideOrig = this.hideOriginal && hasTranslation;
+                        const showOrigAsFallback = this.hideOriginal && !hasTranslation && !msg.isTranslating;
+                        return html`
+                            ${this._isSpeakerChange(idx) ? html`
+                                <div class="speaker-label">
+                                    ${msg.speaker.toLowerCase() === 'me' ? 'You' : 'Speaker'}
                                 </div>
                             ` : ''}
-                        </div>
-                    `)
+                            <div class="stt-message ${this.getSpeakerClass(msg.speaker)}">
+                                <div class="message-text ${shouldHideOrig ? 'hidden-original' : ''} ${showOrigAsFallback ? 'fallback-visible' : ''}">${msg.text}</div>
+                                ${hasTranslation ? html`
+                                    <div class="translated-text">${msg.translatedText}${msg.isTranslating && msg.isPartial ? html`<span class="translating-dot"></span>` : ''}</div>
+                                ` : msg.isTranslating ? html`
+                                    <div class="translated-text"><span class="translating-dot"></span></div>
+                                ` : msg.translateError ? html`
+                                    <div class="translate-error">${msg.translateError}</div>
+                                ` : ''}
+                            </div>
+                        `;
+                    })
                 }
                 ${this.showJumpToLatest ? html`
-                    <button class="jump-to-latest" @click=${this.scrollToBottom} title="Jump to latest message">
+                    <button class="jump-to-latest" @click=${this.scrollToBottom} title="Jump to latest">
                         Jump to latest
                     </button>
                 ` : ''}

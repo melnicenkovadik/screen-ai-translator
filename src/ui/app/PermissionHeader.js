@@ -66,7 +66,7 @@ export class PermissionHeader extends LitElement {
             border: none;
             border-radius: 3px;
             color: rgba(255, 255, 255, 0.7);
-            cursor: pointer;
+            cursor: default;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -162,7 +162,7 @@ export class PermissionHeader extends LitElement {
             color: white;
             font-size: 12px;
             font-weight: 500;
-            cursor: pointer;
+            cursor: default;
             transition: background 0.15s ease;
             position: relative;
             overflow: hidden;
@@ -191,7 +191,7 @@ export class PermissionHeader extends LitElement {
 
         .action-button:disabled {
             opacity: 0.5;
-            cursor: not-allowed;
+            cursor: default;
         }
 
         .continue-button {
@@ -204,7 +204,7 @@ export class PermissionHeader extends LitElement {
             color: white;
             font-size: 12px;
             font-weight: 500;
-            cursor: pointer;
+            cursor: default;
             transition: background 0.15s ease;
             position: relative;
             overflow: hidden;
@@ -233,7 +233,7 @@ export class PermissionHeader extends LitElement {
 
         .continue-button:disabled {
             background: rgba(255, 255, 255, 0.2);
-            cursor: not-allowed;
+            cursor: default;
         }
 
         .skip-link {
@@ -242,7 +242,7 @@ export class PermissionHeader extends LitElement {
             border: none;
             color: rgba(255, 255, 255, 0.45);
             font-size: 10px;
-            cursor: pointer;
+            cursor: default;
             margin-top: 6px;
             transition: color 0.15s ease;
             text-decoration: underline;

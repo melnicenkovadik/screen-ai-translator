@@ -69,7 +69,7 @@ export class SettingsView extends LitElement {
         .settings-button[disabled],
         .api-key-section input[disabled] {
             opacity: 0.4;
-            cursor: not-allowed;
+            cursor: default;
             pointer-events: none;
         }
 
@@ -178,7 +178,7 @@ export class SettingsView extends LitElement {
             padding: 5px 10px;
             font-size: 11px;
             font-weight: 400;
-            cursor: pointer;
+            cursor: default;
             transition: all 0.15s ease;
             display: flex;
             align-items: center;
@@ -268,7 +268,7 @@ export class SettingsView extends LitElement {
         .preset-toggle {
             font-size: 10px;
             color: rgba(255, 255, 255, 0.6);
-            cursor: pointer;
+            cursor: default;
             padding: 2px 4px;
             border-radius: 2px;
             transition: background-color 0.15s ease;
@@ -293,7 +293,7 @@ export class SettingsView extends LitElement {
             padding: 4px 6px;
             background: rgba(255, 255, 255, 0.05);
             border-radius: 3px;
-            cursor: pointer;
+            cursor: default;
             transition: all 0.15s ease;
             font-size: 11px;
             border: 1px solid transparent;
@@ -341,7 +341,7 @@ export class SettingsView extends LitElement {
         .no-presets-message .web-link {
             color: rgba(0, 122, 255, 0.8);
             text-decoration: underline;
-            cursor: pointer;
+            cursor: default;
         }
 
         .no-presets-message .web-link:hover {
@@ -416,7 +416,7 @@ export class SettingsView extends LitElement {
             border: 1px solid rgba(255,255,255,0.2);
             color: rgba(255,255,255,0.9);
             border-radius: 4px;
-            cursor: pointer;
+            cursor: default;
             font-size: 10px;
             transition: background 0.15s ease;
             padding: 0;
@@ -436,7 +436,7 @@ export class SettingsView extends LitElement {
             padding: 5px 8px; 
             font-size: 11px; 
             border-radius: 3px; 
-            cursor: pointer; 
+            cursor: default; 
             transition: background-color 0.15s; 
             display: flex; 
             justify-content: space-between; 
@@ -479,7 +479,7 @@ export class SettingsView extends LitElement {
             padding: 3px 6px;
             font-size: 10px;
             outline: none;
-            cursor: pointer;
+            cursor: default;
         }
         .model-row select option {
             background: #1a1a1a;
@@ -511,7 +511,7 @@ export class SettingsView extends LitElement {
             border-radius: 4px;
             padding: 3px 6px;
             font-size: 9px;
-            cursor: pointer;
+            cursor: default;
             white-space: nowrap;
             transition: all 0.15s ease;
         }
@@ -537,7 +537,7 @@ export class SettingsView extends LitElement {
         select.model-dropdown {
             background: rgba(0,0,0,0.2);
             color: white;
-            cursor: pointer;
+            cursor: default;
         }
         
         select.model-dropdown option {

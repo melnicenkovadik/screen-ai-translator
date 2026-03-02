@@ -42,7 +42,7 @@ export class ListenView extends LitElement {
 /* Allow text selection in insights responses */
 .insights-container, .insights-container *, .markdown-content {
     user-select: text !important;
-    cursor: text !important;
+    cursor: default !important;
 }
 
 /* highlight.js 스타일 추가 */
@@ -221,7 +221,6 @@ export class ListenView extends LitElement {
             gap: 4px;
             align-items: center;
             flex-shrink: 0;
-            width: 120px;
             justify-content: flex-end;
             box-sizing: border-box;
             padding: 4px;
@@ -240,7 +239,7 @@ export class ListenView extends LitElement {
             border-radius: 5px;
             font-size: 11px;
             font-weight: 500;
-            cursor: pointer;
+            cursor: default;
             height: 24px;
             white-space: nowrap;
             transition: background-color 0.15s ease;
@@ -249,6 +248,14 @@ export class ListenView extends LitElement {
 
         .toggle-button:hover {
             background: rgba(255, 255, 255, 0.1);
+        }
+
+        .toggle-button.qa-active {
+            background: rgba(0, 122, 255, 0.35);
+        }
+
+        .toggle-button.qa-active:hover {
+            background: rgba(0, 122, 255, 0.5);
         }
 
         .toggle-button svg {
@@ -265,7 +272,7 @@ export class ListenView extends LitElement {
             box-shadow: none;
             padding: 4px;
             border-radius: 3px;
-            cursor: pointer;
+            cursor: default;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -390,6 +397,7 @@ export class ListenView extends LitElement {
         captureStartTime: { type: Number },
         isSessionActive: { type: Boolean },
         hasCompletedRecording: { type: Boolean },
+        questionsActive: { type: Boolean },
     };
 
     constructor() {
@@ -404,6 +412,7 @@ export class ListenView extends LitElement {
         this.timerInterval = null;
         this.copyState = 'idle';
         this.copyTimeout = null;
+        this.questionsActive = false;
     }
 
     connectedCallback() {
@@ -413,6 +422,15 @@ export class ListenView extends LitElement {
             this.startTimer();
         }
         if (window.api) {
+            if (window.api.questionsView) {
+                this._questionsStateListener = (event, state) => {
+                    this.questionsActive = state.isActive;
+                };
+                window.api.questionsView.onStateUpdate(this._questionsStateListener);
+                window.api.questionsView.getState().then(state => {
+                    this.questionsActive = state.isActive;
+                });
+            }
             window.api.listenView.onSessionStateChanged((event, { isActive }) => {
                 const wasActive = this.isSessionActive;
                 this.isSessionActive = isActive;
@@ -444,6 +462,9 @@ export class ListenView extends LitElement {
 
         if (this.copyTimeout) {
             clearTimeout(this.copyTimeout);
+        }
+        if (window.api?.questionsView && this._questionsStateListener) {
+            window.api.questionsView.removeOnStateUpdate(this._questionsStateListener);
         }
     }
 
@@ -516,6 +537,17 @@ export class ListenView extends LitElement {
         }
     }
 
+    async handleQuestionsToggle() {
+        try {
+            const result = await window.api?.questionsView?.toggle();
+            if (result) {
+                this.questionsActive = result.isActive;
+            }
+        } catch (error) {
+            console.error('[ListenView] Questions toggle failed:', error);
+        }
+    }
+
     handleSttMessagesUpdated(event) {
         // no-op: window height is fixed, CSS handles scrolling
     }
@@ -524,9 +556,9 @@ export class ListenView extends LitElement {
         const displayText = this.isHovering
             ? this.viewMode === 'transcript'
                 ? 'Copy Transcript'
-                : 'Copy Smart AI Translator Analysis'
+                : 'Copy Summary'
             : this.viewMode === 'insights'
-            ? `Live insights`
+            ? `Live summary`
             : `Smart AI Translator is Listening ${this.elapsedTime}`;
 
         return html`
@@ -536,6 +568,9 @@ export class ListenView extends LitElement {
                         <span class="bar-left-text-content ${this.isAnimating ? 'slide-in' : ''}">${displayText}</span>
                     </div>
                     <div class="bar-controls">
+                        <button class="toggle-button ${this.questionsActive ? 'qa-active' : ''}" @click=${this.handleQuestionsToggle}>
+                            <span>Q&A</span>
+                        </button>
                         <button class="toggle-button" @click=${this.toggleViewMode}>
                             ${this.viewMode === 'insights'
                                 ? html`
@@ -550,7 +585,7 @@ export class ListenView extends LitElement {
                                           <path d="M9 11l3 3L22 4" />
                                           <path d="M22 12v7a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h11" />
                                       </svg>
-                                      <span>Show Insights</span>
+                                      <span>Show Summary</span>
                                   `}
                         </button>
                         <button

@@ -72,7 +72,7 @@ export class ApiKeyHeader extends LitElement {
             border: none;
             border-radius: 5px;
             color: rgba(255, 255, 255, 0.7);
-            cursor: pointer;
+            cursor: default;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -99,7 +99,7 @@ export class ApiKeyHeader extends LitElement {
             align-items: center;
             gap: 4px;
             display: flex;
-            cursor: pointer;
+            cursor: default;
             transition: background-color 0.2s ease;
         }
         .back-button:hover {
@@ -156,7 +156,7 @@ export class ApiKeyHeader extends LitElement {
             font-weight: 450;
             letter-spacing: 0.11px;
             border: none;
-            cursor: pointer;
+            cursor: default;
             transition: background-color 0.2s ease;
             flex: 1;
         }
@@ -190,7 +190,7 @@ export class ApiKeyHeader extends LitElement {
             font-size: 12px;
             font-weight: 500;
             font-family: inherit;
-            cursor: pointer;
+            cursor: default;
             text-align: center;
             transition: background-color 0.2s ease;
         }
@@ -232,7 +232,7 @@ export class ApiKeyHeader extends LitElement {
             color: white;
             font-size: 12px;
             font-weight: 500;
-            cursor: pointer;
+            cursor: default;
             transition: background-color 0.2s ease;
         }
         .confirm-button:hover {
@@ -243,7 +243,7 @@ export class ApiKeyHeader extends LitElement {
             color: #bebebe;
             border: 0.5px solid rgba(255, 255, 255, 0.24);
             box-shadow: none;
-            cursor: not-allowed;
+            cursor: default;
         }
         .footer {
             width: 100%;
@@ -255,7 +255,7 @@ export class ApiKeyHeader extends LitElement {
         }
         .footer-link {
             text-decoration: underline;
-            cursor: pointer;
+            cursor: default;
             -webkit-app-region: no-drag;
         }
         .error-message,

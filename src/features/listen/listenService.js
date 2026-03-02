@@ -6,6 +6,7 @@ const sessionRepository = require('../common/repositories/session');
 const sttRepository = require('./stt/repositories');
 const internalBridge = require('../../bridge/internalBridge');
 const settingsService = require('../settings/settingsService');
+const questionQueueService = require('../questions/questionQueueService');
 
 class ListenService {
     constructor() {
@@ -177,12 +178,15 @@ class ListenService {
 
     async handleTranscriptionComplete(speaker, text) {
         console.log(`[ListenService] Transcription complete: ${speaker} - ${text}`);
-        
+
         // Save to database
         await this.saveConversationTurn(speaker, text);
-        
+
         // Add to summary service for analysis
         this.summaryService.addConversationTurn(speaker, text);
+
+        // Feed to question queue
+        questionQueueService.addTranscription(speaker, text, this.summaryService.getConversationHistory());
     }
 
     async saveConversationTurn(speaker, transcription) {
@@ -223,6 +227,9 @@ class ListenService {
             
             // Reset conversation history
             this.summaryService.resetConversationHistory();
+
+            // Clear question queue on new session
+            questionQueueService.clearQueue();
 
             console.log('New conversation session started:', this.currentSessionId);
             return true;
@@ -273,9 +280,10 @@ class ListenService {
             /* ------------------------------------------- */
 
             console.log('✅ Listen service initialized successfully.');
-            
+
             this.sendToRenderer('update-status', 'Connected. Ready to listen.');
-            
+            this.summaryService.startAutoSummary();
+
             return true;
         } catch (error) {
             console.error('❌ Failed to initialize listen service:', error);
@@ -303,6 +311,10 @@ class ListenService {
         this.sttService.stopMacOSAudioCapture();
     }
 
+    setSummaryLanguage(lang) {
+        this.summaryService.setSummaryLanguage(lang);
+    }
+
     isSessionActive() {
         return this.sttService.isSessionActive();
     }
@@ -310,6 +322,7 @@ class ListenService {
     async closeSession() {
         try {
             this.clearAutoStopTimer();
+            this.summaryService.stopAutoSummary();
             this.sendToRenderer('change-listen-capture-state', { status: "stop" });
             // Close STT sessions
             await this.sttService.closeSessions();

@@ -58,6 +58,16 @@ function updateChildWindowLayouts(animated = true) {
 
     const newLayout = layoutManager.calculateFeatureWindowLayout(visibleWindows);
     movementManager.animateLayout(newLayout, animated);
+
+    // Reposition questions window if visible
+    const questionsWin = windowPool.get('questions');
+    if (questionsWin && !questionsWin.isDestroyed() && questionsWin.isVisible()) {
+        // Delay slightly so listen/ask positions settle first
+        setTimeout(() => {
+            const pos = layoutManager.calculateQuestionsWindowPosition();
+            if (pos) questionsWin.setBounds(pos);
+        }, animated ? 250 : 0);
+    }
 }
 
 const showSettingsWindow = () => {
@@ -350,6 +360,22 @@ async function handleWindowVisibilityRequest(windowPool, layoutManager, movement
         return;
     }
 
+    if (name === 'questions') {
+        if (shouldBeVisible) {
+            const position = layoutManager.calculateQuestionsWindowPosition();
+            if (position) {
+                win.setBounds(position);
+                win.show();
+                win.moveTop();
+                win.setAlwaysOnTop(true);
+            }
+        } else {
+            win.setAlwaysOnTop(false);
+            win.hide();
+        }
+        return;
+    }
+
     if (name === 'listen' || name === 'ask') {
         const win = windowPool.get(name);
         const otherName = name === 'listen' ? 'ask' : 'listen';
@@ -599,6 +625,39 @@ function createFeatureWindows(header, namesToCreate) {
                 }
                 break;
             }
+
+            case 'questions': {
+                const questions = new BrowserWindow({
+                    ...commonChildOptions,
+                    width: 300,
+                    height: 400,
+                    maxHeight: 500,
+                    parent: undefined,
+                });
+                questions.setContentProtection(isContentProtectionOn);
+                questions.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+                if (process.platform === 'darwin') {
+                    questions.setWindowButtonVisibility(false);
+                }
+                const questionsLoadOptions = { query: { view: 'questions' } };
+                if (!shouldUseLiquidGlass) {
+                    questions.loadFile(path.join(__dirname, '../ui/app/content.html'), questionsLoadOptions);
+                } else {
+                    questionsLoadOptions.query.glass = 'true';
+                    questions.loadFile(path.join(__dirname, '../ui/app/content.html'), questionsLoadOptions);
+                    questions.webContents.once('did-finish-load', () => {
+                        const viewId = liquidGlass.addView(questions.getNativeWindowHandle());
+                        if (viewId !== -1) {
+                            liquidGlass.unstable_setVariant(viewId, liquidGlass.GlassMaterialVariant.bubbles);
+                        }
+                    });
+                }
+                windowPool.set('questions', questions);
+                if (!app.isPackaged) {
+                    questions.webContents.openDevTools({ mode: 'detach' });
+                }
+                break;
+            }
         }
     };
 
@@ -611,11 +670,12 @@ function createFeatureWindows(header, namesToCreate) {
         createFeatureWindow('ask');
         createFeatureWindow('settings');
         createFeatureWindow('shortcut-settings');
+        createFeatureWindow('questions');
     }
 }
 
 function destroyFeatureWindows() {
-    const featureWindows = ['listen','ask','settings','shortcut-settings'];
+    const featureWindows = ['listen','ask','settings','shortcut-settings','questions'];
     if (settingsHideTimer) {
         clearTimeout(settingsHideTimer);
         settingsHideTimer = null;

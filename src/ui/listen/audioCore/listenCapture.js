@@ -331,8 +331,6 @@ async function setupMicProcessing(micStream) {
                 // **음성 구간일 때만 런**
                 processedChunk = runAecSync(new Float32Array(chunk), sysF32);
                 // console.log('🔊 Applied WASM-AEC (speex)');
-            } else {
-                console.log('🔊 No system audio for AEC reference');
             }
 
             const pcm16 = convertFloat32ToInt16(processedChunk);
@@ -475,12 +473,14 @@ async function startCapture(screenshotIntervalSeconds = 5, imageQuality = 'mediu
                     video: false,
                 });
 
-                console.log('macOS microphone capture started');
+                console.log('[listenCapture] macOS microphone capture started successfully');
                 const { context, processor } = await setupMicProcessing(micMediaStream);
                 audioContext = context;
                 audioProcessor = processor;
+                window.dispatchEvent(new CustomEvent('mic-status', { detail: { connected: true } }));
             } catch (micErr) {
-                console.warn('Failed to get microphone on macOS:', micErr);
+                console.error('[listenCapture] Failed to get microphone on macOS:', micErr.name, micErr.message);
+                window.dispatchEvent(new CustomEvent('mic-status', { detail: { connected: false, error: micErr.message } }));
             }
             ////////// for index & subjects //////////
 
@@ -516,13 +516,12 @@ async function startCapture(screenshotIntervalSeconds = 5, imageQuality = 'mediu
                     video: false,
                 });
 
-                console.log('Linux microphone capture started');
-
-                // Setup audio processing for microphone on Linux
+                console.log('[listenCapture] Linux microphone capture started');
                 setupLinuxMicProcessing(micMediaStream);
+                window.dispatchEvent(new CustomEvent('mic-status', { detail: { connected: true } }));
             } catch (micError) {
-                console.warn('Failed to get microphone access on Linux:', micError);
-                // Continue without microphone if permission denied
+                console.error('[listenCapture] Failed to get microphone access on Linux:', micError.name, micError.message);
+                window.dispatchEvent(new CustomEvent('mic-status', { detail: { connected: false, error: micError.message } }));
             }
 
             console.log('Linux screen capture started');
@@ -548,12 +547,14 @@ async function startCapture(screenshotIntervalSeconds = 5, imageQuality = 'mediu
                     },
                     video: false,
                 });
-                console.log('Windows microphone capture started');
+                console.log('[listenCapture] Windows microphone capture started');
                 const { context, processor } = await setupMicProcessing(micMediaStream);
                 audioContext = context;
                 audioProcessor = processor;
+                window.dispatchEvent(new CustomEvent('mic-status', { detail: { connected: true } }));
             } catch (micErr) {
-                console.warn('Could not get microphone access on Windows:', micErr);
+                console.error('[listenCapture] Could not get microphone access on Windows:', micErr.name, micErr.message);
+                window.dispatchEvent(new CustomEvent('mic-status', { detail: { connected: false, error: micErr.message } }));
             }
 
             // 2. Get system audio using native Electron loopback
