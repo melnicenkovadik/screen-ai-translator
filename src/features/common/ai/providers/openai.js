@@ -33,7 +33,7 @@ class OpenAIProvider {
 }
 
 
-async function createSTT({ apiKey, language = 'ru', callbacks = {}, ...config }) {
+async function createSTT({ apiKey, language = 'en', callbacks = {}, ...config }) {
   const wsUrl = 'wss://api.openai.com/v1/realtime?intent=transcription';
   const headers = {
     'Authorization': `Bearer ${apiKey}`,

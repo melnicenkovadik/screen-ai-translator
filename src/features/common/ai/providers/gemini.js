@@ -30,15 +30,34 @@ class GeminiProvider {
  * Creates a Gemini STT session
  * @param {object} opts - Configuration options
  * @param {string} opts.apiKey - Gemini API key
- * @param {string} [opts.language='ru-RU'] - Language code
+ * @param {string} [opts.language='en-US'] - Language code
  * @param {object} [opts.callbacks] - Event callbacks
  * @returns {Promise<object>} STT session
  */
-async function createSTT({ apiKey, language = "ru-RU", callbacks = {}, ...config }) {
+async function createSTT({ apiKey, language = "en-US", callbacks = {}, ...config }) {
   const liveClient = new GoogleGenAI({ vertexai: false, apiKey })
 
-  // Language code BCP-47 conversion
-  const lang = language.includes("-") ? language : `${language}-RU`
+  // Normalize short language tags used in UI into BCP-47 codes.
+  const LANGUAGE_TO_BCP47 = {
+    en: "en-US",
+    uk: "uk-UA",
+    ru: "ru-RU",
+    de: "de-DE",
+    fr: "fr-FR",
+    es: "es-ES",
+    it: "it-IT",
+    pt: "pt-PT",
+    zh: "zh-CN",
+    ja: "ja-JP",
+    ko: "ko-KR",
+    tr: "tr-TR",
+    pl: "pl-PL",
+    ar: "ar-SA",
+    hi: "hi-IN",
+  }
+  const normalizedLanguage = String(language || "").trim()
+  const lang = LANGUAGE_TO_BCP47[normalizedLanguage]
+    || (normalizedLanguage.includes("-") ? normalizedLanguage : "en-US")
 
   const session = await liveClient.live.connect({
 

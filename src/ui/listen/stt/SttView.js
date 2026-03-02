@@ -368,8 +368,8 @@ export class SttView extends LitElement {
         this.toggleMicInput = this.toggleMicInput.bind(this);
         this._forceTranslateTick = this._forceTranslateTick.bind(this);
 
-        this.targetLanguage = 'ru';
-        this.sourceLanguage = 'auto';
+        this.targetLanguage = 'uk';
+        this.sourceLanguage = 'en';
         this.autoTranslate = false;
         this.autoScroll = true;
         this.forceTranslateSeconds = 0;
@@ -923,7 +923,7 @@ export class SttView extends LitElement {
     }
 
     handleLanguageChange(event) {
-        const value = event?.target?.value || 'ru';
+        const value = event?.target?.value || 'uk';
         this.targetLanguage = value;
         try { localStorage.setItem('sttTargetLanguage', value); } catch {}
         window.api?.sttView?.setSummaryLanguage?.(value);
@@ -931,7 +931,7 @@ export class SttView extends LitElement {
     }
 
     async handleSourceLanguageChange(event) {
-        const value = (event?.target?.value || 'auto').trim();
+        const value = (event?.target?.value || 'en').trim();
         this.sourceLanguage = value;
         try {
             await window.api?.listenView?.setLanguage?.(value);

@@ -15,7 +15,7 @@ class ListenService {
         this.summaryService = new SummaryService();
         this.currentSessionId = null;
         this.isInitializingSession = false;
-        this.sttSourceLanguage = 'auto';
+        this.sttSourceLanguage = 'en';
         this.autoStopMs = 45 * 60 * 1000;
         this.autoStopTimer = null;
 
@@ -137,7 +137,7 @@ class ListenService {
                     console.log('[ListenService] changeSession to "Listen"');
                     internalBridge.emit('window:requestVisibility', { name: 'listen', visible: true });
                     {
-                        const initialized = await this.initializeSession(this.sttSourceLanguage || 'ru');
+                        const initialized = await this.initializeSession(this.sttSourceLanguage || 'en');
                         if (!initialized) {
                             throw new Error('Failed to initialize listening session');
                         }
@@ -240,7 +240,7 @@ class ListenService {
         }
     }
 
-    async initializeSession(language = 'ru') {
+    async initializeSession(language = 'en') {
         if (this.isInitializingSession) {
             console.log('Session initialization already in progress.');
             return false;
@@ -364,11 +364,11 @@ class ListenService {
     // Language Controls
     // ────────────────────────────────
     getSttLanguage() {
-        return this.sttSourceLanguage || 'ru';
+        return this.sttSourceLanguage || 'en';
     }
 
     async setSttLanguage(lang) {
-        const newLang = (typeof lang === 'string' && lang.trim().length > 0) ? lang.trim() : 'ru';
+        const newLang = (typeof lang === 'string' && lang.trim().length > 0) ? lang.trim() : 'en';
         const prevLang = this.sttSourceLanguage;
         this.sttSourceLanguage = newLang;
 
